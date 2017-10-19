@@ -5,7 +5,7 @@ SCRIPT="$(dirname $0)"
 source "${SCRIPT}/lib/common.sh"
 source "${SCRIPT}/lib/functions.sh"
 
-REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid"
+REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid shasum md5sum"
 OPTIONAL="mkfs.ext4 git"
 
 _DEV=
@@ -122,6 +122,8 @@ main() {
 # {{{ check required arguments
 	if [[ -z "${_DEV}" ]]; then
 		error "argument dev required"
+	elif [[ -z "${_FIRMWARE}" && -z "${_CONFIG}" ]]; then
+		error "argument firmware or config required"
 	elif [[ -z "${_PUBLICKEY}" ]]; then
 		error "argument public-key required"
 	fi
