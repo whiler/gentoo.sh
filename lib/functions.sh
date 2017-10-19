@@ -134,12 +134,64 @@ prepare-portage() {
 }
 # }}}
 prepare-resource() {
-	prepare-stage3
-	prepare-portage
-    return 0
+	local ret=0
+	if ! prepare-stage3; then
+		warn "prepare stage3 failed"
+		ret=1
+	elif ! prepare-portage; then
+		warn "prepare portage failed"
+		ret=1
+	fi
+    return "${ret}"
 }
 
 prepare-disk() {
+	local keyfile="$(mktemp)"
+	local cryptname="encrypted"
+	local vgname="vg"
+
+	parted --script --align=optimal "${_DEV}" mktable gpt
+	parted --align=optimal "${_DEV}" <<EOF
+unit mib
+mkpart primary 1 3
+name 1 grub
+set 1 bios_grub on
+mkpart ESI fat32 3 67
+name 2 boot
+set 2 boot on
+mkpart primary 67 100%
+name 3 linux
+quit
+EOF
+	until [[ -e "${_DEV}3" ]]
+	do
+		sleep 0.3
+	done
+
+	modprobe {dm-mod,dm-crypt,aes,sha256,cbc}
+	head -1 "${_LUKS}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keyfile}"
+	yes | cryptsetup luksFormat --key-file="${keyfile}" "${_DEV}3"
+	cryptsetup luksOpen --key-file="${keyfile}" "${_DEV}3" "${cryptname}"
+	rm "${keyfile}"
+
+	pvcreate "/dev/mapper/${cryptname}"
+	vgcreate "${vgname}" "/dev/mapper/${cryptname}"
+	lvcreate --size="${SWAPSIZE}G" --name=swap "${vgname}"
+	lvcreate --extents=100%FREE --name=root "${vgname}"
+
+	mkfs.vfat -F 32 -n Boot "${_DEV}2"
+	mkswap --force --label="swap" "/dev/${vgname}/swap"
+	mkfs.ext4 -L "root" "/dev/${vgname}/root"
+
+	swapon "/dev/${vgname}/swap"
+	mkdir --parents "${ROOT}"
+	mount "/dev/${vgname}/root" "${ROOT}"
+	mkdir --parents "${ROOT}/boot"
+	mount "${_DEV}2" "${ROOT}/boot"
+
+	SWAPUUID="$(blkid -s UUID -t LABEL="swap" | cut -d "\"" -f 2)"
+    ROOTUUID="$(blkid -s UUID -t LABEL="root" | cut -d "\"" -f 2)"
+
     return 0
 }
 
