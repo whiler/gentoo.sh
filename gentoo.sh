@@ -1,12 +1,13 @@
 #!/bin/bash
+# need GNU Coreutils support
 
 SCRIPT="$(dirname $0)"
-
 source "${SCRIPT}/lib/common.sh"
 source "${SCRIPT}/lib/functions.sh"
 
+REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid"
+OPTIONAL="mkfs.ext4 git"
 
-# {{{ arguments
 _DEV=
 _ARCH=
 _PLATFORM=
@@ -20,8 +21,6 @@ _HOSTNAME=
 _TIMEZONE=
 _PUBLICKEY=
 _LUKS=
-# }}}
-
 
 main() {
 # {{{ get arguments from command line

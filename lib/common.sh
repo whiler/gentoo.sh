@@ -1,4 +1,5 @@
 #!/bin/bash
+# only need shell built-in commands
 
 _DT_FORMAT="+[%Y-%m-%d %H:%M:%S %Z]"
 
@@ -19,3 +20,14 @@ error () {
 	exit 1
 }
 
+red() {
+	echo -e "\033[31m${@}\033[0m"
+}
+
+yellow() {
+	echo -e "\033[33m${@}\033[0m"
+}
+
+green() {
+	echo -e "\033[32m${@}\033[0m"
+}
