@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "${SCRIPT}/lib/common.sh"
+
 check-runtime() {
     return 0
 }

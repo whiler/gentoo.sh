@@ -1,7 +1,10 @@
 #!/bin/bash
 
-source "lib/common.sh"
-source "lib/functions.sh"
+SCRIPT="$(dirname $0)"
+
+source "${SCRIPT}/lib/common.sh"
+source "${SCRIPT}/lib/functions.sh"
+
 
 # {{{ arguments
 _DEV=
