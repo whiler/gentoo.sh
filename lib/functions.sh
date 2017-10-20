@@ -58,21 +58,21 @@ check-stage3() {
 }
 
 prepare-stage3() {
-	local pattern="[0-9]\+/stage3-${_ARCH}-[0-9]\+.tar.bz2"
+	local pattern="[0-9]\+/stage3-${ARCH}-[0-9]\+.tar.bz2"
 	local path=
 	local filename=
 	local url=
 	local stage3=
-	if [[ -z "${_STAGE3}" ]]; then
-		for mirror in ${_MIRRORS[@]};
+	if [[ -z "${STAGE3}" ]]; then
+		for mirror in ${MIRRORS[@]};
 		do
-			path="$(curl --silent "${mirror}/releases/${_ARCH}/autobuilds/latest-stage3.txt" | grep "${pattern}" | cut -d " " -f 1)"
-			url="${mirror}/releases/${_ARCH}/autobuilds/${path}"
+			path="$(curl --silent "${mirror}/releases/${ARCH}/autobuilds/latest-stage3.txt" | grep "${pattern}" | cut -d " " -f 1)"
+			url="${mirror}/releases/${ARCH}/autobuilds/${path}"
 			filename="$(basename "${path}")"
 			stage3="${SCRIPT}/resources/${filename}"
 
 			if check-stage3 "${stage3}"; then
-				_STAGE3="${stage3}"
+				STAGE3="${stage3}"
 				break
 			fi
 
@@ -80,7 +80,7 @@ prepare-stage3() {
 			curl --silent --location --output "${stage3}" "${url}" && curl --silent --location --output "${stage3}.DIGESTS" "${url}.DIGESTS"
 
 			if check-stage3 "${stage3}"; then
-				_STAGE3="${stage3}"
+				STAGE3="${stage3}"
 				break
 			else
 				warn "check sum failed"
@@ -88,7 +88,7 @@ prepare-stage3() {
 			fi
 		done
 	fi
-	if [[ -e "${_STAGE3}" ]]; then
+	if [[ -e "${STAGE3}" ]]; then
 		return 0
 	else
 		return 1
@@ -117,13 +117,13 @@ prepare-portage() {
 	local filename="portage-latest.tar.bz2"
 	local portage="${SCRIPT}/resources/${filename}"
 	local url=
-	if [[ -z "${_PORTAGE}" ]]; then
-		for mirror in ${_MIRRORS[@]};
+	if [[ -z "${PORTAGE}" ]]; then
+		for mirror in ${MIRRORS[@]};
 		do
 			url="${mirror}/snapshots/portage-latest.tar.bz2"
 
 			if check-portage "${portage}"; then
-				_PORTAGE="${portage}"
+				PORTAGE="${portage}"
 				break
 			fi
 
@@ -131,7 +131,7 @@ prepare-portage() {
 			curl --silent --location --output "${portage}" "${url}" && curl --silent --location --output "${portage}.md5sum" "${url}.md5sum"
 
 			if check-portage "${portage}"; then
-				_PORTAGE="${portage}"
+				PORTAGE="${portage}"
 				break
 			else
 				warn "check sum failed"
@@ -139,7 +139,7 @@ prepare-portage() {
 			fi
 		done
 	fi
-	if [[ -e "${_PORTAGE}" ]]; then
+	if [[ -e "${PORTAGE}" ]]; then
 		return 0
 	else
 		return 1
@@ -163,8 +163,8 @@ prepare-disk() {
 	local cryptname="encrypted"
 	local vgname="vg"
 
-	parted --script --align=optimal "${_DEV}" mktable gpt
-	parted --align=optimal "${_DEV}" <<EOF
+	parted --script --align=optimal "${DEV}" mktable gpt
+	parted --align=optimal "${DEV}" <<EOF
 unit mib
 mkpart primary 1 3
 name 1 grub
@@ -176,15 +176,15 @@ mkpart primary 67 100%
 name 3 linux
 quit
 EOF
-	until [[ -e "${_DEV}3" ]]
+	until [[ -e "${DEV}3" ]]
 	do
 		sleep 0.3
 	done
 
 	modprobe {dm-mod,dm-crypt,aes,sha256,cbc}
-	head -1 "${_LUKS}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keyfile}"
-	yes | cryptsetup luksFormat --key-file="${keyfile}" "${_DEV}3"
-	cryptsetup luksOpen --key-file="${keyfile}" "${_DEV}3" "${cryptname}"
+	head -1 "${LUKS}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keyfile}"
+	yes | cryptsetup luksFormat --key-file="${keyfile}" "${DEV}3"
+	cryptsetup luksOpen --key-file="${keyfile}" "${DEV}3" "${cryptname}"
 	rm "${keyfile}"
 
 	pvcreate "/dev/mapper/${cryptname}"
@@ -192,7 +192,7 @@ EOF
 	lvcreate --size="${MEMSIZE}" --name=swap "${vgname}"
 	lvcreate --extents=100%FREE --name=root "${vgname}"
 
-	mkfs.vfat -F 32 -n Boot "${_DEV}2"
+	mkfs.vfat -F 32 -n Boot "${DEV}2"
 	mkswap --force --label="swap" "/dev/${vgname}/swap"
 	mkfs.ext4 -L "root" "/dev/${vgname}/root"
 
@@ -200,7 +200,7 @@ EOF
 	mkdir --parents "${ROOT}"
 	mount "/dev/${vgname}/root" "${ROOT}"
 	mkdir --parents "${ROOT}/boot"
-	mount "${_DEV}2" "${ROOT}/boot"
+	mount "${DEV}2" "${ROOT}/boot"
 
 	SWAPUUID="$(blkid -s UUID -t LABEL="swap" | cut -d "\"" -f 2)"
     ROOTUUID="$(blkid -s UUID -t LABEL="root" | cut -d "\"" -f 2)"

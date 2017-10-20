@@ -11,92 +11,92 @@ OPTIONAL="mkfs.ext4 git"
 MEMSIZE=
 ROOT="/mnt/gentoo"
 
-_DEV=
-_ARCH=
-_PLATFORM=
-_MIRRORS=
-_RSYNC=
-_STAGE3=
-_PORTAGE=
-_FIRMWARE=
-_CONFIG=
-_HOSTNAME=
-_TIMEZONE=
-_PUBLICKEY=
-_LUKS=
-_MODE=
+DEV=
+ARCH=
+PLATFORM=
+MIRRORS=
+RSYNC=
+STAGE3=
+PORTAGE=
+FIRMWARE=
+CONFIG=
+HOSTNAME=
+TIMEZONE=
+PUBLICKEY=
+LUKS=
+MODE=
 
 main() {
     for arg in "${@}"
     do
         case "${arg}" in 
             --dev=*)
-                _DEV="${arg#*=}"
+                DEV="${arg#*=}"
                 shift
                 ;;
 
             --arch=*)
-                _ARCH="${arg#*=}"
+                ARCH="${arg#*=}"
                 shift
                 ;;
 
             --platform=*)
-                _PLATFORM="${arg#*=}"
+                PLATFORM="${arg#*=}"
                 shift
                 ;;
 
             --mirrors=*)
-                _MIRRORS="${arg#*=}"
+                MIRRORS="${arg#*=}"
                 shift
                 ;;
 
             --rsync=*)
-                _RSYNC="${arg#*=}"
+                RSYNC="${arg#*=}"
                 shift
                 ;;
 
             --stage3=*)
-                _STAGE3="${arg#*=}"
+                STAGE3="${arg#*=}"
                 shift
                 ;;
 
             --portage=*)
-                _PORTAGE="${arg#*=}"
+                PORTAGE="${arg#*=}"
                 shift
                 ;;
 
             --firmware=*)
-                _FIRMWARE="${arg#*=}"
+                FIRMWARE="${arg#*=}"
                 shift
                 ;;
 
             --config=*)
-                _CONFIG="${arg#*=}"
+                CONFIG="${arg#*=}"
                 shift
                 ;;
 
             --hostname=*)
-                _HOSTNAME="${arg#*=}"
+                HOSTNAME="${arg#*=}"
                 shift
                 ;;
 
             --timezone=*)
-                _TIMEZONE="${arg#*=}"
+                TIMEZONE="${arg#*=}"
                 shift
                 ;;
 
             --public-key=*)
-                _PUBLICKEY="${arg#*=}"
+                PUBLICKEY="${arg#*=}"
                 shift
                 ;;
 
             --luks=*)
-                _LUKS="${arg#*=}"
+                LUKS="${arg#*=}"
                 shift
                 ;;
 
             --mode=*)
-                _MODE="${arg#*=}"
+                MODE="${arg#*=}"
                 shift
                 ;;
 
@@ -111,7 +111,7 @@ main() {
 	if [[ "x86_64" == "${arch}" ]]; then
 		arch="amd64"
 	fi
-	_ARCH="${_ARCH:=${arch}}"
+	ARCH="${ARCH:=${arch}}"
 
 	local platform="$(uname -s)"
 	if [[ "Darwin" == "${platform}" ]]; then
@@ -119,26 +119,26 @@ main() {
 	else
 		platform="generic"
 	fi
-	_PLATFORM="${_PLATFORM:=${platform}}"
+	PLATFORM="${PLATFORM:=${platform}}"
 
-	_MIRRORS="${_MIRRORS:="http://distfiles.gentoo.org/"}"
-	_RSYNC="${_RSYNC:="rsync.gentoo.org"}"
-	_HOSTNAME="${_HOSTNAME:="gentoo"}"
-	_TIMEZONE="${_TIMEZONE:="GMT"}"
-	_MODE="${_MODE:="install"}"
+	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
+	RSYNC="${RSYNC:="rsync.gentoo.org"}"
+	HOSTNAME="${HOSTNAME:="gentoo"}"
+	TIMEZONE="${TIMEZONE:="GMT"}"
+	MODE="${MODE:="install"}"
 
-	if [[ -z "${_DEV}" ]]; then
+	if [[ -z "${DEV}" ]]; then
 		error "argument dev required"
-	elif [[ -z "${_FIRMWARE}" && -z "${_CONFIG}" ]]; then
+	elif [[ -z "${FIRMWARE}" && -z "${CONFIG}" ]]; then
 		error "argument firmware or config required"
-	elif [[ -z "${_PUBLICKEY}" ]]; then
+	elif [[ -z "${PUBLICKEY}" ]]; then
 		error "argument public-key required"
 	fi
 
-	if [[ ! -e "archs/${_ARCH}.sh" ]]; then
-		error "unsupported arch ${_ARCH}"
+	if [[ ! -e "archs/${ARCH}.sh" ]]; then
+		error "unsupported arch ${ARCH}"
 	else
-		source "archs/${_ARCH}.sh"
+		source "archs/${ARCH}.sh"
 		if ! init-arch; then
 			error "init arch failed"
 		elif ! check-arch; then
@@ -146,10 +146,10 @@ main() {
 		fi
 	fi
 
-	if [[ ! -e "platforms/${_PLATFORM}.sh" ]]; then
-		error "unsupported platform ${_PLATFORM}"
+	if [[ ! -e "platforms/${PLATFORM}.sh" ]]; then
+		error "unsupported platform ${PLATFORM}"
 	else
-		source "platforms/${_PLATFORM}.sh"
+		source "platforms/${PLATFORM}.sh"
 		if ! init-platform; then
 			error "init platform failed"
 		elif ! check-platform; then

@@ -22,7 +22,7 @@ init-platform() {
 }
 
 check-platform() {
-	if [[ -z "${_LUKS}" ]]; then
+	if [[ -z "${LUKS}" ]]; then
 		error "argument luks required for platform generic"
 	fi
 
