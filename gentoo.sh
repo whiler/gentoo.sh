@@ -8,6 +8,7 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid shasum md5sum"
 OPTIONAL="mkfs.ext4 git"
 
+CPUCOUNT=
 MEMSIZE=
 ROOT="/mnt/gentoo"
 
