@@ -4,7 +4,6 @@ install gentoo/linux quickly
 
     gentoo.sh \
 		--dev=/dev/vda \
-        --arch=amd64|x86|arm \
         --platform=generic|mbp|pi \
         --mirrors="http://mirrors.163.com/gentoo/ http://mirrors.sohu.com/gentoo/" \
         --rsync=rsync.cn.gentoo.org \

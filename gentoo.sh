@@ -13,8 +13,8 @@ MEMSIZE=
 ROOT="/mnt/gentoo"
 
 DEV=
-ARCH=
-PLATFORM=
+ARCH="amd64"
+PLATFORM="generic"
 MIRRORS=
 RSYNC=
 STAGE3=
@@ -33,11 +33,6 @@ main() {
         case "${arg}" in 
             --dev=*)
                 DEV="${arg#*=}"
-                shift
-                ;;
-
-            --arch=*)
-                ARCH="${arg#*=}"
                 shift
                 ;;
 
@@ -108,20 +103,6 @@ main() {
 
     done
 
-	local arch="$(uname -m)"
-	if [[ "x86_64" == "${arch}" ]]; then
-		arch="amd64"
-	fi
-	ARCH="${ARCH:=${arch}}"
-
-	local platform="$(uname -s)"
-	if [[ "Darwin" == "${platform}" ]]; then
-		platform="mbp"
-	else
-		platform="generic"
-	fi
-	PLATFORM="${PLATFORM:=${platform}}"
-
 	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
 	RSYNC="${RSYNC:="rsync.gentoo.org"}"
 	HOSTNAME="${HOSTNAME:="gentoo"}"
@@ -134,17 +115,6 @@ main() {
 		error "argument firmware or config required"
 	elif [[ -z "${PUBLICKEY}" ]]; then
 		error "argument public-key required"
-	fi
-
-	if [[ ! -e "archs/${ARCH}.sh" ]]; then
-		error "unsupported arch ${ARCH}"
-	else
-		source "archs/${ARCH}.sh"
-		if ! init-arch; then
-			error "init arch failed"
-		elif ! check-arch; then
-			error "check arch failed"
-		fi
 	fi
 
 	if [[ ! -e "platforms/${PLATFORM}.sh" ]]; then

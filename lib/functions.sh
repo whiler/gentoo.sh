@@ -23,15 +23,7 @@ check-runtime() {
 	return "${ret}"
 }
 
-init-arch() {
-	return 0
-}
-
 init-platform() {
-	return 0
-}
-
-check-arch() {
 	return 0
 }
 
