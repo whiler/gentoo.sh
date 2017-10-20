@@ -23,11 +23,11 @@ check-runtime() {
 	return "${ret}"
 }
 
-init-platform() {
+check-platform-arguments() {
 	return 0
 }
 
-check-platform() {
+init-platform() {
 	return 0
 }
 

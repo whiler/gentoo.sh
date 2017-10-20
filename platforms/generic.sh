@@ -25,16 +25,16 @@ init-cpucount() {
 	return 0
 }
 
-init-platform() {
-	init-memsize
-	init-cpucount
-	return 0
-}
-
-check-platform() {
+check-platform-arguments() {
 	if [[ -z "${LUKS}" ]]; then
 		error "argument luks required for platform generic"
 	fi
 
+	return 0
+}
+
+init-platform() {
+	init-memsize
+	init-cpucount
 	return 0
 }
