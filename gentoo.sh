@@ -24,6 +24,7 @@ _HOSTNAME=
 _TIMEZONE=
 _PUBLICKEY=
 _LUKS=
+_MODE=
 
 main() {
     for arg in "${@}"
@@ -94,6 +95,11 @@ main() {
                 shift
                 ;;
 
+            --mode=*)
+                _MODE="${arg#*=}"
+                shift
+                ;;
+
             *)
                 shift
                 ;;
@@ -119,6 +125,7 @@ main() {
 	_RSYNC="${_RSYNC:="rsync.gentoo.org"}"
 	_HOSTNAME="${_HOSTNAME:="gentoo"}"
 	_TIMEZONE="${_TIMEZONE:="GMT"}"
+	_MODE="${_MODE:="install"}"
 
 	if [[ -z "${_DEV}" ]]; then
 		error "argument dev required"

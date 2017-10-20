@@ -15,4 +15,5 @@ install gentoo/linux quickly
         --hostname=gentoo \
         --timezone=Asia/Shanghai \
         --public-key=/path/to/public.key \
-        --luks=/path/to/dmcrypt.key
+        --luks=/path/to/dmcrypt.key \
+		--mode=install
