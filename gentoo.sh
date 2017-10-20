@@ -8,6 +8,9 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid shasum md5sum"
 OPTIONAL="mkfs.ext4 git"
 
+MEMSIZE=
+ROOT="/mnt/gentoo"
+
 _DEV=
 _ARCH=
 _PLATFORM=
@@ -23,7 +26,6 @@ _PUBLICKEY=
 _LUKS=
 
 main() {
-# {{{ get arguments from command line
     for arg in "${@}"
     do
         case "${arg}" in 
@@ -98,8 +100,7 @@ main() {
         esac
 
     done
-# }}}
-# {{{ fill default arguments
+
 	local arch="$(uname -m)"
 	if [[ "x86_64" == "${arch}" ]]; then
 		arch="amd64"
@@ -118,8 +119,7 @@ main() {
 	_RSYNC="${_RSYNC:="rsync.gentoo.org"}"
 	_HOSTNAME="${_HOSTNAME:="gentoo"}"
 	_TIMEZONE="${_TIMEZONE:="GMT"}"
-# }}}
-# {{{ check required arguments
+
 	if [[ -z "${_DEV}" ]]; then
 		error "argument dev required"
 	elif [[ -z "${_FIRMWARE}" && -z "${_CONFIG}" ]]; then
@@ -127,18 +127,27 @@ main() {
 	elif [[ -z "${_PUBLICKEY}" ]]; then
 		error "argument public-key required"
 	fi
-# }}}
 
 	if [[ ! -e "archs/${_ARCH}.sh" ]]; then
 		error "unsupported arch ${_ARCH}"
 	else
 		source "archs/${_ARCH}.sh"
+		if ! init-arch; then
+			error "init arch failed"
+		elif ! check-arch; then
+			error "check arch failed"
+		fi
 	fi
 
 	if [[ ! -e "platforms/${_PLATFORM}.sh" ]]; then
 		error "unsupported platform ${_PLATFORM}"
 	else
 		source "platforms/${_PLATFORM}.sh"
+		if ! init-platform; then
+			error "init platform failed"
+		elif ! check-platform; then
+			error "check platform failed"
+		fi
 	fi
 
 	if [[ 0 -ne ${UID} ]]; then

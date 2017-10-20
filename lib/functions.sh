@@ -2,7 +2,6 @@
 
 source "${SCRIPT}/lib/common.sh"
 
-# {{{ check-runtime
 check-runtime() {
 	local ret=0
 
@@ -23,8 +22,23 @@ check-runtime() {
 
 	return "${ret}"
 }
-# }}}
-# {{{ stage3
+
+init-arch() {
+	return 0
+}
+
+init-platform() {
+	return 0
+}
+
+check-arch() {
+	return 0
+}
+
+check-platform() {
+	return 0
+}
+
 check-stage3() {
 	local stage3="${1}"
 	local chk=0
@@ -80,8 +94,7 @@ prepare-stage3() {
 		return 1
 	fi
 }
-# }}}
-# {{{ portage
+
 check-portage() {
 	local portage="${1}"
 	local ret=1
@@ -132,7 +145,7 @@ prepare-portage() {
 		return 1
 	fi
 }
-# }}}
+
 prepare-resource() {
 	local ret=0
 	if ! prepare-stage3; then
@@ -176,7 +189,7 @@ EOF
 
 	pvcreate "/dev/mapper/${cryptname}"
 	vgcreate "${vgname}" "/dev/mapper/${cryptname}"
-	lvcreate --size="${SWAPSIZE}G" --name=swap "${vgname}"
+	lvcreate --size="${MEMSIZE}" --name=swap "${vgname}"
 	lvcreate --extents=100%FREE --name=root "${vgname}"
 
 	mkfs.vfat -F 32 -n Boot "${_DEV}2"
