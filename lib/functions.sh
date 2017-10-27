@@ -58,8 +58,8 @@ prepare-stage3() {
 	if [[ -z "${STAGE3}" ]]; then
 		for mirror in ${MIRRORS[@]};
 		do
-			path="$(curl --silent "${mirror}/releases/${ARCH}/autobuilds/latest-stage3.txt" | grep "${pattern}" | cut -d " " -f 1)"
-			url="${mirror}/releases/${ARCH}/autobuilds/${path}"
+			path="$(curl --silent "${mirror%%/}/releases/${ARCH}/autobuilds/latest-stage3.txt" | grep "${pattern}" | cut -d " " -f 1)"
+			url="${mirror%%/}/releases/${ARCH}/autobuilds/${path}"
 			filename="$(basename "${path}")"
 			stage3="${SCRIPT}/resources/${filename}"
 
@@ -112,7 +112,7 @@ prepare-portage() {
 	if [[ -z "${PORTAGE}" ]]; then
 		for mirror in ${MIRRORS[@]};
 		do
-			url="${mirror}/snapshots/portage-latest.tar.bz2"
+			url="${mirror%%/}/snapshots/portage-latest.tar.bz2"
 
 			if check-portage "${portage}"; then
 				PORTAGE="${portage}"
