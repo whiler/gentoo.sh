@@ -158,7 +158,7 @@ main() {
 
 	if [[ -z "${DEV}" ]]; then
 		error "argument dev required"
-	elif [[ -e "${DEV}" ]]; then
+	elif [[ ! -e "${DEV}" ]]; then
 		error "no such dev ${DEV}"
 	elif [[ ! -b "${DEV}" ]]; then
 		error "dev ${DEV} must be block device"
