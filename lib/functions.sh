@@ -76,7 +76,7 @@ prepare-stage3() {
 				break
 			else
 				warn "check sum failed"
-				rm "${stage3}" "${stage3}.DIGESTS"
+				rm -f "${stage3}" "${stage3}.DIGESTS"
 			fi
 		done
 	fi
@@ -127,7 +127,7 @@ prepare-portage() {
 				break
 			else
 				warn "check sum failed"
-				rm "${portage}" "${portage}.md5sum"
+				rm -f "${portage}" "${portage}.md5sum"
 			fi
 		done
 	fi
@@ -177,7 +177,7 @@ EOF
 	head -1 "${LUKS}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keyfile}"
 	yes | cryptsetup luksFormat --key-file="${keyfile}" "${DEV}3"
 	cryptsetup luksOpen --key-file="${keyfile}" "${DEV}3" "${cryptname}"
-	rm "${keyfile}"
+	rm -f "${keyfile}"
 
 	pvcreate "/dev/mapper/${cryptname}"
 	vgcreate "${vgname}" "/dev/mapper/${cryptname}"
