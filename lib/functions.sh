@@ -184,7 +184,7 @@ EOF
 	lvcreate --size="${MEMSIZE}" --name=swap "${vgname}"
 	lvcreate --extents=100%FREE --name=root "${vgname}"
 
-	mkfs.vfat -F 32 -n Boot "${DEV}2"
+	mkfs.vfat -F 32 -n BOOT "${DEV}2"
 	mkswap --force --label="swap" "/dev/${vgname}/swap"
 	mkfs.ext4 -L "root" "/dev/${vgname}/root"
 
