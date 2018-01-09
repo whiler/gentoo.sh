@@ -26,10 +26,6 @@ init-cpucount() {
 }
 
 check-platform-arguments() {
-	if [[ -z "${LUKS}" ]]; then
-		LOGE "argument luks required for platform generic"
-	fi
-
 	return 0
 }
 

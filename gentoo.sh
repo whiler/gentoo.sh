@@ -1,8 +1,8 @@
 #!/bin/bash
 # need GNU Coreutils support
 
-SCRIPT="$(dirname $0)"
-source "${SCRIPT}/lib/common.sh"
+SCRIPT="$(dirname "$(readlink -f $0)")"
+source "${SCRIPT}/lib/log.sh"
 source "${SCRIPT}/lib/functions.sh"
 
 REQUIRED="parted pvcreate vgcreate vgchange lvcreate cryptsetup mkfs.vfat mkswap swapon swapoff modprobe blkid shasum md5sum"
@@ -24,38 +24,37 @@ CONFIG=
 HOSTNAME=
 TIMEZONE=
 PUBLICKEY=
-LUKS=
 MODE=
 
 install() {
 	if [[ -z "${FIRMWARE}" && -z "${CONFIG}" ]]; then
-		error "argument firmware or config required"
+		LOGE "argument firmware or config required"
 	elif [[ -z "${PUBLICKEY}" ]]; then
-		error "argument public-key required"
+		LOGE "argument public-key required"
 	fi
 
 	if ! prepare-resource; then
-		error "prepare resource failed"
+		LOGE "prepare resource failed"
 	fi
 
 	if ! prepare-disk; then
-		error "prepare disk failed"
+		LOGE "prepare disk failed"
 	fi
 
 	if ! extract-resource; then
-		error "extract resource failed"
+		LOGE "extract resource failed"
 	fi
 
 	if ! config-gentoo; then
-		error "config gentoo failed"
+		LOGE "config gentoo failed"
 	fi
 
 	if ! chroot-into-gentoo; then
-		error "chroot into gentoo failed"
+		LOGE "chroot into gentoo failed"
 	fi
 
 	if ! clean; then
-		warn "clean failed"
+		LOGW "clean failed"
 	fi
 
 	return 0
@@ -68,82 +67,77 @@ repair() {
 }
 
 argparse() {
-    for arg in "${@}"
-    do
-        case "${arg}" in 
-            --dev=*)
-                DEV="${arg#*=}"
-                shift
-                ;;
+	for arg in "${@}"
+	do
+		case "${arg}" in 
+			--dev=*)
+				DEV="${arg#*=}"
+				shift
+				;;
 
-            --platform=*)
-                PLATFORM="${arg#*=}"
-                shift
-                ;;
+			--platform=*)
+				PLATFORM="${arg#*=}"
+				shift
+				;;
 
-            --mirrors=*)
-                MIRRORS="${arg#*=}"
-                shift
-                ;;
+			--mirrors=*)
+				MIRRORS="${arg#*=}"
+				shift
+				;;
 
-            --rsync=*)
-                RSYNC="${arg#*=}"
-                shift
-                ;;
+			--rsync=*)
+				RSYNC="${arg#*=}"
+				shift
+				;;
 
-            --stage3=*)
-                STAGE3="${arg#*=}"
-                shift
-                ;;
+			--stage3=*)
+				STAGE3="${arg#*=}"
+				shift
+				;;
 
-            --portage=*)
-                PORTAGE="${arg#*=}"
-                shift
-                ;;
+			--portage=*)
+				PORTAGE="${arg#*=}"
+				shift
+				;;
 
-            --firmware=*)
-                FIRMWARE="${arg#*=}"
-                shift
-                ;;
+			--firmware=*)
+				FIRMWARE="${arg#*=}"
+				shift
+				;;
 
-            --config=*)
-                CONFIG="${arg#*=}"
-                shift
-                ;;
+			--config=*)
+				CONFIG="${arg#*=}"
+				shift
+				;;
 
-            --hostname=*)
-                HOSTNAME="${arg#*=}"
-                shift
-                ;;
+			--hostname=*)
+				HOSTNAME="${arg#*=}"
+				shift
+				;;
 
-            --timezone=*)
-                TIMEZONE="${arg#*=}"
-                shift
-                ;;
+			--timezone=*)
+				TIMEZONE="${arg#*=}"
+				shift
+				;;
 
-            --public-key=*)
-                PUBLICKEY="${arg#*=}"
-                shift
-                ;;
+			--public-key=*)
+				PUBLICKEY="${arg#*=}"
+				shift
+				;;
 
-            --luks=*)
-                LUKS="${arg#*=}"
-                shift
-                ;;
+			--mode=*)
+				MODE="${arg#*=}"
+				shift
+				;;
 
-            --mode=*)
-                MODE="${arg#*=}"
-                shift
-                ;;
+			*)
+				shift
+				;;
+		esac
 
-            *)
-                shift
-                ;;
-        esac
+	done
 
-    done
-
-	PLATFORM="${PLATFORM:="generic"}"
+	PLATFORM="${PLATFORM:="base"}"
 	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
 	RSYNC="${RSYNC:="rsync.gentoo.org"}"
 	HOSTNAME="${HOSTNAME:="gentoo"}"
@@ -157,26 +151,26 @@ main() {
 	argparse "${@}"
 
 	if [[ -z "${DEV}" ]]; then
-		error "argument dev required"
+		LOGE "argument dev required"
 	elif [[ ! -e "${DEV}" ]]; then
-		error "no such dev ${DEV}"
+		LOGE "no such dev ${DEV}"
 	elif [[ ! -b "${DEV}" ]]; then
-		error "dev ${DEV} must be block device"
+		LOGE "dev ${DEV} must be block device"
 	elif [[ ! -e "${SCRIPT}/platforms/${PLATFORM}.sh" ]]; then
-		error "unsupported platform ${PLATFORM}"
+		LOGE "unsupported platform ${PLATFORM}"
 	else
 		source "${SCRIPT}/platforms/${PLATFORM}.sh"
 		if ! check-platform-arguments; then
-			error "check platform ${PLATFORM} arguments failed"
+			LOGE "check platform ${PLATFORM} arguments failed"
 		elif ! init-platform; then
-			error "init platform ${PLATFORM} failed"
+			LOGE "init platform ${PLATFORM} failed"
 		fi
 	fi
 
 	if [[ 0 -ne ${UID} ]]; then
-		error "root privilege required"
+		LOGE "root privilege required"
 	elif ! check-runtime; then
-		error "check runtime failed"
+		LOGE "check runtime failed"
 	fi
 	
 	if [[ "install" == "${MODE}" ]]; then
@@ -184,10 +178,10 @@ main() {
 	elif [[ "repair" == "${MODE}" ]]; then
 		repair
 	else
-		warn "What do you mean?"
+		LOGW "What do you mean?"
 	fi
 
-	info "enjoy gentoo"
+	LOGI "enjoy gentoo"
 }
 
 main "${@}"

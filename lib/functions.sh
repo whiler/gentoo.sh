@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "${SCRIPT}/lib/common.sh"
+source "${SCRIPT}/lib/log.sh"
 
 check-runtime() {
 	local ret=0
@@ -16,7 +16,7 @@ check-runtime() {
 	for cmd in ${OPTIONAL[@]}
 	do
 		if ! which "${cmd}" > /dev/null; then
-			yellow "Warning! command '${cmd}' not found"
+			LOGW "command '${cmd}' not found"
 		fi
 	done
 
@@ -37,9 +37,9 @@ check-stage3() {
 	local filename="$(basename "${stage3}")"
 
 	if [[ -e "${stage3}" && -e "${stage3}.DIGESTS" ]]; then
-		pushd "$(dirname "${stage3}")"
-			chk="$(shasum -c "${filename}.DIGESTS" 2>/dev/null | grep "${filename}:" | grep -c "OK")"
-		popd
+		pushd "$(dirname "${stage3}")" > /dev/null
+			chk="$(shasum --check "${filename}.DIGESTS" 2>/dev/null | grep "${filename}:" | grep -c "OK")"
+		popd > /dev/null
 	fi
 	
 	if [[ 1 -eq "${chk}" ]]; then
@@ -50,7 +50,6 @@ check-stage3() {
 }
 
 prepare-stage3() {
-	local pattern="[0-9]\+/stage3-${ARCH}-[0-9]\+.tar.bz2"
 	local path=
 	local filename=
 	local url=
@@ -58,7 +57,12 @@ prepare-stage3() {
 	if [[ -z "${STAGE3}" ]]; then
 		for mirror in ${MIRRORS[@]};
 		do
-			path="$(curl --silent "${mirror%%/}/releases/${ARCH}/autobuilds/latest-stage3.txt" | grep "${pattern}" | cut -d " " -f 1)"
+			url="${mirror%%/}/releases/${ARCH}/autobuilds/latest-stage3-${ARCH}.txt"
+			path="$(curl --silent "${url}" | grep --invert-match --extended-regexp "^#" | cut --delimiter=" " --fields=1)"
+			if [[ -z "${path}" ]]; then
+				LOGW "query the latest-stage3-${ARCH} from ${mirror} failed"
+				continue
+			fi
 			url="${mirror%%/}/releases/${ARCH}/autobuilds/${path}"
 			filename="$(basename "${path}")"
 			stage3="${SCRIPT}/resources/${filename}"
@@ -68,14 +72,14 @@ prepare-stage3() {
 				break
 			fi
 
-			debug "downloading ${url}"
+			LOGD "downloading ${url}"
 			curl --silent --location --output "${stage3}" "${url}" && curl --silent --location --output "${stage3}.DIGESTS" "${url}.DIGESTS"
 
 			if check-stage3 "${stage3}"; then
 				STAGE3="${stage3}"
 				break
 			else
-				warn "check sum failed"
+				LOGW "check sum failed"
 				rm -f "${stage3}" "${stage3}.DIGESTS"
 			fi
 		done
@@ -93,40 +97,40 @@ check-portage() {
 	local filename="$(basename "${portage}")"
 
 	if [[ -e "${portage}" && -e "${portage}.md5sum" ]]; then
-		pushd "$(dirname "${portage}")"
-			if md5sum -c "${filename}.md5sum" > /dev/null; then
+		pushd "$(dirname "${portage}")" > /dev/null
+			if md5sum --check "${filename}.md5sum" > /dev/null; then
 				ret=0
 			else
 				ret=1
 			fi
-		popd
+		popd > /dev/null
 	fi
 
 	return "${ret}"
 }
 
 prepare-portage() {
-	local filename="portage-latest.tar.bz2"
+	local filename="portage-latest.tar.xz"
 	local portage="${SCRIPT}/resources/${filename}"
 	local url=
 	if [[ -z "${PORTAGE}" ]]; then
 		for mirror in ${MIRRORS[@]};
 		do
-			url="${mirror%%/}/snapshots/portage-latest.tar.bz2"
+			url="${mirror%%/}/snapshots/${filename}"
 
 			if check-portage "${portage}"; then
 				PORTAGE="${portage}"
 				break
 			fi
 
-			debug "downloading ${url}"
+			LOGD "downloading ${url}"
 			curl --silent --location --output "${portage}" "${url}" && curl --silent --location --output "${portage}.md5sum" "${url}.md5sum"
 
 			if check-portage "${portage}"; then
 				PORTAGE="${portage}"
 				break
 			else
-				warn "check sum failed"
+				LOGW "check sum failed"
 				rm -f "${portage}" "${portage}.md5sum"
 			fi
 		done
@@ -141,10 +145,10 @@ prepare-portage() {
 prepare-resource() {
 	local ret=0
 	if ! prepare-stage3; then
-		warn "prepare stage3 failed"
+		LOGW "prepare stage3 failed"
 		ret=1
 	elif ! prepare-portage; then
-		warn "prepare portage failed"
+		LOGW "prepare portage failed"
 		ret=1
 	fi
     return "${ret}"
