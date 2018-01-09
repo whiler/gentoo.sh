@@ -3,16 +3,31 @@
 install gentoo/linux quickly
 
     gentoo.sh \
-		--dev=/dev/vda \
-        --platform=generic|mbp|pi \
+        --dev=/dev/vda \
+        --platform=base|generic \
         --mirrors="http://mirrors.163.com/gentoo/ http://mirrors.sohu.com/gentoo/" \
         --rsync=rsync.cn.gentoo.org \
         --stage3=/path/to/stage3 \
         --portage=/path/to/portage \
         --firmware=/path/to/firmware \
-		--config=/path/to/kernel/config \
+        --config=/path/to/kernel/config \
         --hostname=gentoo \
         --timezone=Asia/Shanghai \
         --public-key=/path/to/public.key \
-        --luks=/path/to/dmcrypt.key \
-		--mode=install
+        --mode=install
+
+### platforms and features ###
+```
+      +------+
+      | base |
+      +------+
+         |
+         v
+    +---------+
+    | generic |
+    +---------+
+```
+
+#### base ####
+#### generic ####
+- dm-crypt
