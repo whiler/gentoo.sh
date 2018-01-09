@@ -155,12 +155,8 @@ prepare-resource() {
 }
 
 prepare-disk() {
-	local keyfile="$(mktemp)"
-	local cryptname="encrypted"
-	local vgname="vg"
-
-	parted --script --align=optimal "${DEV}" mktable gpt
-	parted --align=optimal "${DEV}" <<EOF
+	parted --script --align=opt "${DEV}" "mktable gpt"
+	parted --align=opt "${DEV}" <<EOF
 unit mib
 mkpart primary 1 3
 name 1 grub
@@ -177,29 +173,23 @@ EOF
 		sleep 0.3
 	done
 
-	modprobe {dm-mod,dm-crypt,aes,sha256,cbc}
-	head -1 "${LUKS}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keyfile}"
-	yes | cryptsetup luksFormat --key-file="${keyfile}" "${DEV}3"
-	cryptsetup luksOpen --key-file="${keyfile}" "${DEV}3" "${cryptname}"
-	rm -f "${keyfile}"
-
-	pvcreate "/dev/mapper/${cryptname}"
-	vgcreate "${vgname}" "/dev/mapper/${cryptname}"
-	lvcreate --size="${MEMSIZE}" --name=swap "${vgname}"
-	lvcreate --extents=100%FREE --name=root "${vgname}"
+	pvcreate "${DEV}3"
+	vgcreate "${VGNAME}" "${DEV}3"
+	lvcreate --size="${MEMSIZE}" --name=swap "${VGNAME}"
+	lvcreate --extents=100%FREE --name=root "${VGNAME}"
 
 	mkfs.vfat -F 32 -n BOOT "${DEV}2"
-	mkswap --force --label="swap" "/dev/${vgname}/swap"
-	mkfs.ext4 -L "root" "/dev/${vgname}/root"
+	mkswap --force --label="${SWAPLABEL}" "/dev/${VGNAME}/swap"
+	mkfs.ext4 -L "${ROOTLABEL}" "/dev/${VGNAME}/root"
 
-	swapon "/dev/${vgname}/swap"
+#SWAPUUID="$(blkid -s UUID -o value -t LABEL="swap")"
+#ROOTUUID="$(blkid -s UUID -o value -t LABEL="root")"
+
+	swapon "/dev/${VGNAME}/swap"
 	mkdir --parents "${ROOT}"
-	mount "/dev/${vgname}/root" "${ROOT}"
+	mount "/dev/${VGNAME}/root" "${ROOT}"
 	mkdir --parents "${ROOT}/boot"
 	mount "${DEV}2" "${ROOT}/boot"
-
-	SWAPUUID="$(blkid -s UUID -t LABEL="swap" | cut -d "\"" -f 2)"
-    ROOTUUID="$(blkid -s UUID -t LABEL="root" | cut -d "\"" -f 2)"
 
     return 0
 }
@@ -219,4 +209,3 @@ chroot-into-gentoo() {
 clean() {
     return 0
 }
-
