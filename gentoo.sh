@@ -22,7 +22,6 @@ MIRRORS=
 RSYNC=
 STAGE3=
 PORTAGE=
-FIRMWARE=
 CONFIG=
 HOSTNAME=
 TIMEZONE=
@@ -30,33 +29,23 @@ PUBLICKEY=
 MODE=
 
 install() {
-	if [[ -z "${FIRMWARE}" && -z "${CONFIG}" ]]; then
-		LOGE "argument firmware or config required"
+	if [[ -z "${CONFIG}" ]]; then
+		LOGE "argument config required"
 	elif [[ -z "${PUBLICKEY}" ]]; then
 		LOGE "argument public-key required"
 	fi
 
 	if ! prepare-resource; then
 		LOGE "prepare resource failed"
-	fi
-
-	if ! prepare-disk; then
+	elif ! prepare-disk; then
 		LOGE "prepare disk failed"
-	fi
-
-	if ! extract-resource; then
+	elif ! extract-resource; then
 		LOGE "extract resource failed"
-	fi
-
-	if ! config-gentoo; then
+	elif ! config-gentoo; then
 		LOGE "config gentoo failed"
-	fi
-
-	if ! chroot-into-gentoo; then
+	elif ! chroot-into-gentoo; then
 		LOGE "chroot into gentoo failed"
-	fi
-
-	if ! clean; then
+	elif ! clean; then
 		LOGW "clean failed"
 	fi
 
@@ -64,8 +53,14 @@ install() {
 }
 
 repair() {
-	open-disk
-	chroot-into-gentoo-for-repair
+	if ! open-disk; then
+		LOGE "open disk failed"
+	elif ! chroot-into-gentoo-for-repair; then
+		LOGE "chroot failed"
+	elif ! clean; then
+		LOGW "clean failed"
+	fi
+
 	return 0
 }
 
@@ -100,11 +95,6 @@ argparse() {
 
 			--portage=*)
 				PORTAGE="${arg#*=}"
-				shift
-				;;
-
-			--firmware=*)
-				FIRMWARE="${arg#*=}"
 				shift
 				;;
 
@@ -144,7 +134,7 @@ argparse() {
 	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
 	RSYNC="${RSYNC:="rsync.gentoo.org"}"
 	HOSTNAME="${HOSTNAME:="gentoo"}"
-	TIMEZONE="${TIMEZONE:="GMT"}"
+	TIMEZONE="${TIMEZONE:="UTC"}"
 	MODE="${MODE:="install"}"
 
 	return 0
