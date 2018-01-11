@@ -228,7 +228,7 @@ extract-resource() {
 config-gentoo() {
 	sed -i -e "s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
-	echo "MAKEOPTS=\"-j${CPUCOUNT}\"" >> "${ROOT}/etc/portage/make.conf"
+	echo "MAKEOPTS=\"-j$((CPUCOUNT * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
 
 	if [[ ! -z "${MIRRORS}" && "http://distfiles.gentoo.org/" != "${MIRRORS}" ]]; then
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
@@ -272,6 +272,13 @@ EOF
 
 	echo "GRUB_PLATFORMS=\"efi-64 pc\"" >> "${ROOT}/etc/portage/make.conf"
 
+	ln --symbolic --force /proc/self/mounts "${ROOT}/etc/mtab"
+
+	mkdir --parents "${ROOT}/etc/portage/env"
+	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
+	echo "dev-libs/boost singleton" >> "${ROOT}/etc/portage/package.env"
+	echo "dev-util/cmake singleton" >> "${ROOT}/etc/portage/package.env"
+
     return 0
 }
 
@@ -299,24 +306,25 @@ chroot-into-gentoo() {
 	LOGI "chroot"
 
 	chroot "${ROOT}" /bin/bash <<EOF
+eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
-emerge --quiet sys-apps/pciutils sys-kernel/genkernel sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
+emerge --quiet --deep --newuse @world
+emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
 mv /kernel.config /usr/src/linux/.config
-echo "GRUB_CMDLINE_LINUX=\"dolvm\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
 pushd /usr/src/linux/
 make && make modules_install && make install
 popd
-genkernel --lvm --install initramfs
+genkernel --udev --lvm --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
-
-    return 0
+	return 0
 }
 
 clean() {
-	cd
+	cd /
 	LOGI "clean"
 	umount -l ${ROOT}/dev{/shm,/pts,}
 	umount -R ${ROOT}
