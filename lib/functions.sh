@@ -41,7 +41,7 @@ check-stage3() {
 			chk="$(shasum --check "${filename}.DIGESTS" 2>/dev/null | grep "${filename}:" | grep -c "OK")"
 		popd > /dev/null
 	fi
-	
+
 	if [[ 1 -eq "${chk}" ]]; then
 		return 0
 	else
@@ -287,7 +287,7 @@ prepare-chroot() {
 	mount --rbind /sys ${ROOT}/sys
 	mount --make-rslave ${ROOT}/sys
 	mount --rbind /dev ${ROOT}/dev
-	mount --make-rslave ${ROOT}/dev 
+	mount --make-rslave ${ROOT}/dev
 	test -L /dev/shm && rm /dev/shm && mkdir /dev/shm && mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm && chmod 1777 /dev/shm
 	return 0
 }
@@ -310,6 +310,7 @@ eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
 emerge --quiet --deep --newuse @world
 emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
+emerge --depclean
 mv /kernel.config /usr/src/linux/.config
 echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
 pushd /usr/src/linux/
@@ -319,6 +320,19 @@ genkernel --udev --lvm --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig -o /boot/grub/grub.cfg
+
+systemd-machine-id-setup
+
+echo "[Match]" >>   /etc/systemd/network/50-dhcp.network
+echo "Name=en*" >>  /etc/systemd/network/50-dhcp.network
+echo "[Network]" >> /etc/systemd/network/50-dhcp.network
+echo "DHCP=yes" >>  /etc/systemd/network/50-dhcp.network
+systemctl enable systemd-networkd.service
+
+ln --no-dereference --symbolic --force /run/systemd/resolve/resolv.conf /etc/resolv.conf
+systemctl enable systemd-resolved.service
+
+systemctl enable sshd.service
 EOF
 	return 0
 }
@@ -326,6 +340,7 @@ EOF
 clean() {
 	cd /
 	LOGI "clean"
+	swapoff "/dev/${VGNAME}/swap"
 	umount -l ${ROOT}/dev{/shm,/pts,}
 	umount -R ${ROOT}
     return 0
