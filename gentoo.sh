@@ -5,10 +5,9 @@ SCRIPT="$(dirname "$(readlink -f $0)")"
 source "${SCRIPT}/lib/log.sh"
 source "${SCRIPT}/lib/functions.sh"
 
-REQUIRED="parted pvcreate vgcreate vgchange lvcreate mkfs.vfat mkfs.ext4 mkswap swapon swapoff blkid shasum md5sum"
-OPTIONAL="git"
+REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
+OPTIONAL=
 
-VGNAME="gentoo"
 SWAPLABEL="swap"
 ROOTLABEL="root"
 ARCH="amd64"

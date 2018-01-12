@@ -165,12 +165,10 @@ prepare-resource() {
 }
 
 open-disk() {
-	vgchange --activate=y "${VGNAME}"
-
-	swapon "/dev/${VGNAME}/swap"
+	swapon "${DEV}3"
 
 	mkdir --parents "${ROOT}"
-	mount "/dev/${VGNAME}/root" "${ROOT}"
+	mount "${DEV}4" "${ROOT}"
 
 	mkdir --parents "${ROOT}/boot"
 	mount "${DEV}2" "${ROOT}/boot"
@@ -179,6 +177,7 @@ open-disk() {
 }
 
 prepare-disk() {
+	local offset=$((67 + MEMSIZE))
 	parted --script --align=opt "${DEV}" "mktable gpt"
 	parted --align=opt "${DEV}" <<EOF
 unit mib
@@ -188,23 +187,20 @@ set 1 bios_grub on
 mkpart ESI fat32 3 67
 name 2 boot
 set 2 boot on
-mkpart primary 67 100%
-name 3 linux
+mkpart primary linux-swap 67 ${offset}
+name 3 swap
+mkpart primary ext4 ${offset} 100%
+name 4 root
 quit
 EOF
-	until [[ -e "${DEV}3" ]]
+	until [[ -e "${DEV}4" ]]
 	do
 		sleep 0.3
 	done
 
-	pvcreate "${DEV}3"
-	vgcreate "${VGNAME}" "${DEV}3"
-	lvcreate --size="${MEMSIZE}" --name=swap "${VGNAME}"
-	lvcreate --extents=100%FREE --name=root "${VGNAME}"
-
 	mkfs.vfat -F 32 -n BOOT "${DEV}2"
-	mkswap --force --label="${SWAPLABEL}" "/dev/${VGNAME}/swap"
-	mkfs.ext4 -L "${ROOTLABEL}" "/dev/${VGNAME}/root"
+	mkswap --force --label="${SWAPLABEL}" "${DEV}3"
+	mkfs.ext4 -L "${ROOTLABEL}" "${DEV}4"
 
 	open-disk
 
@@ -263,9 +259,9 @@ EOF
 	chmod 0600 "${ROOT}/root/.ssh/authorized_keys"
 
 	cat > "${ROOT}/etc/fstab" <<EOF
-${DEV}2 /boot auto noauto,noatime 1 2
-UUID=$(blkid -s UUID -o value -t LABEL="${SWAPLABEL}") none swap sw      0 0
-UUID=$(blkid -s UUID -o value -t LABEL="${ROOTLABEL}") /    ext4 noatime 0 1
+${DEV}2            /boot auto noauto,noatime 1 2
+LABEL=${SWAPLABEL} none  swap sw             0 0
+LABEL=${ROOTLABEL} /     ext4 noatime        0 1
 EOF
 
 	cp --dereference "${CONFIG}" "${ROOT}/kernel.config"
@@ -312,11 +308,11 @@ emerge --quiet --deep --newuse @world
 emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
 emerge --quiet --depclean
 mv /kernel.config /usr/src/linux/.config
-echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_LINUX=\"init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
 pushd /usr/src/linux/
 make && make modules_install && make install
 popd
-genkernel --udev --lvm --install initramfs
+genkernel --udev --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -340,7 +336,7 @@ EOF
 clean() {
 	cd /
 	LOGI "clean"
-	swapoff "/dev/${VGNAME}/swap"
+	swapoff "${DEV}3"
 	umount -l ${ROOT}/dev{/shm,/pts,}
 	umount -R ${ROOT}
     return 0
