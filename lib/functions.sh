@@ -2,13 +2,37 @@
 
 source "${SCRIPT}/lib/log.sh"
 
+getcpucount() {
+	grep --count processor /proc/cpuinfo
+}
+
+getmemsize() {
+	local ret=
+	local size=2
+	local KB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+	if [[ 262144 -ge ${KB} ]]; then
+		ret=256
+	elif [[ 524288 -ge ${KB} ]]; then
+		ret=512
+	elif [[ 1048576 -ge ${KB} ]]; then
+		ret=1024
+	else
+		until [[ $((size * 1048576)) -ge ${KB} ]]
+		do
+			size=$((size + 1))
+		done
+		ret=$((1024 * size))
+	fi
+	echo ${ret}
+}
+
 check-runtime() {
 	local ret=0
 
 	for cmd in ${REQUIRED[@]}
 	do
 		if ! which "${cmd}" > /dev/null; then
-			red "Error! command '${cmd}' not found"
+			LOGE "Error! command '${cmd}' not found"
 			ret=1
 		fi
 	done
