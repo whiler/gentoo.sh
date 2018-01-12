@@ -38,7 +38,7 @@ check-stage3() {
 
 	if [[ -e "${stage3}" && -e "${stage3}.DIGESTS" ]]; then
 		pushd "$(dirname "${stage3}")" > /dev/null
-			chk="$(shasum --check "${filename}.DIGESTS" 2>/dev/null | grep "${filename}:" | grep -c "OK")"
+			chk="$(shasum --check "${filename}.DIGESTS" 2>/dev/null | grep "${filename}:" | grep --count "OK")"
 		popd > /dev/null
 	fi
 
@@ -80,7 +80,7 @@ prepare-stage3() {
 				break
 			else
 				LOGW "check sum failed"
-				rm -f "${stage3}" "${stage3}.DIGESTS"
+				rm --force "${stage3}" "${stage3}.DIGESTS"
 			fi
 		done
 	fi
@@ -136,7 +136,7 @@ prepare-portage() {
 				break
 			else
 				LOGW "check sum failed"
-				rm -f "${portage}" "${portage}.md5sum"
+				rm --force "${portage}" "${portage}.md5sum"
 			fi
 		done
 	fi
@@ -222,7 +222,7 @@ extract-resource() {
 }
 
 config-gentoo() {
-	sed -i -e "s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
+	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
 	echo "MAKEOPTS=\"-j$((CPUCOUNT * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
 
@@ -233,7 +233,7 @@ config-gentoo() {
 	mkdir --parents "${ROOT}/etc/portage/repos.conf"
 	cp "${ROOT}/usr/share/portage/config/repos.conf" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
 	if [[ ! -z "${RSYNC}" && "rsync.gentoo.org" != "${RSYNC}" ]]; then
-		sed -i -e "s/rsync.gentoo.org/${RSYNC}/" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
+		sed --in-place --expression="s/rsync.gentoo.org/${RSYNC}/" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
 	fi
 
 	cp --dereference /etc/resolv.conf "${ROOT}/etc/"
@@ -246,13 +246,13 @@ config-gentoo() {
 	echo "LANG=\"en_US.UTF-8\"" >> "${ROOT}/etc/env.d/02locale"
 	echo "en_US.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
 
-	sed -i -e "s/localhost/${HOSTNAME}/" "${ROOT}/etc/conf.d/hostname"
+	sed --in-place --expression="s/localhost/${HOSTNAME}/" "${ROOT}/etc/conf.d/hostname"
 	cat > "${ROOT}/etc/hosts" <<EOF
 127.0.0.1 ${HOSTNAME} localhost
 ::1 ${HOSTNAME} localhost
 EOF
 
-	sed -i -e "s/root:\*:10770:0:::::/root::10770:0:::::/" "${ROOT}/etc/shadow"
+	sed --in-place --expression="s/root:\*:10770:0:::::/root::10770:0:::::/" "${ROOT}/etc/shadow"
 
 	mkdir --parents "${ROOT}/root/.ssh"
 	cp --dereference "${PUBLICKEY}" "${ROOT}/root/.ssh/authorized_keys"
@@ -315,7 +315,7 @@ popd
 genkernel --udev --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
-grub-mkconfig -o /boot/grub/grub.cfg
+grub-mkconfig --output=/boot/grub/grub.cfg
 
 systemd-machine-id-setup
 
@@ -337,7 +337,7 @@ clean() {
 	cd /
 	LOGI "clean"
 	swapoff "${DEV}3"
-	umount -l ${ROOT}/dev{/shm,/pts,}
-	umount -R ${ROOT}
+	umount --lazy ${ROOT}/dev{/shm,/pts,}
+	umount --recursive ${ROOT}
     return 0
 }

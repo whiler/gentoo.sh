@@ -21,7 +21,7 @@ init-memsize() {
 }
 
 init-cpucount() {
-	CPUCOUNT="$(grep -c processor "/proc/cpuinfo")"
+	CPUCOUNT="$(grep --count processor "/proc/cpuinfo")"
 	return 0
 }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # need GNU Coreutils support
 
-SCRIPT="$(dirname "$(readlink -f $0)")"
+SCRIPT="$(dirname "$(readlink --canonicalize "$0")")"
 source "${SCRIPT}/lib/log.sh"
 source "${SCRIPT}/lib/functions.sh"
 
