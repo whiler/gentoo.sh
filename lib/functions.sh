@@ -310,7 +310,7 @@ eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
 emerge --quiet --deep --newuse @world
 emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
-emerge --depclean
+emerge --quiet --depclean
 mv /kernel.config /usr/src/linux/.config
 echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
 pushd /usr/src/linux/
