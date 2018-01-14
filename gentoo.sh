@@ -8,11 +8,14 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
+ENABLEDMCRYPT=
+ENABLELVM=
+ENABLESWAP=Y
+VGNAME="gentoo"
 SWAPLABEL="swap"
 ROOTLABEL="root"
 ARCH="amd64"
 CPUCOUNT=
-MEMSIZE=
 ROOT="/mnt/gentoo"
 
 DEV=
@@ -35,16 +38,22 @@ install() {
 	fi
 
 	if ! prepare-resource; then
-		LOGE "prepare resource failed"
+		LOGW "prepare resource failed"
 	elif ! prepare-disk; then
-		LOGE "prepare disk failed"
+		LOGW "prepare disk failed"
+	elif ! open-disk; then
+		LOGW "open disk failed"
 	elif ! extract-resource; then
-		LOGE "extract resource failed"
+		LOGW "extract resource failed"
 	elif ! config-gentoo; then
-		LOGE "config gentoo failed"
+		LOGW "config gentoo failed"
+	elif ! prepare-chroot; then
+		LOGW "prepare chroot failed"
 	elif ! chroot-into-gentoo; then
-		LOGE "chroot into gentoo failed"
-	elif ! clean; then
+		LOGW "chroot into gentoo failed"
+	fi
+
+	if ! clean; then
 		LOGW "clean failed"
 	fi
 

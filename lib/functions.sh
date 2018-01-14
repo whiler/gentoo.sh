@@ -47,14 +47,6 @@ check-runtime() {
 	return "${ret}"
 }
 
-check-platform-arguments() {
-	return 0
-}
-
-init-platform() {
-	return 0
-}
-
 check-stage3() {
 	local stage3="${1}"
 	local chk=0
@@ -115,11 +107,6 @@ prepare-stage3() {
 	fi
 }
 
-extract-stage3() {
-	tar --extract --preserve-permissions --xattrs-include="*.*" --numeric-owner --file "${STAGE3}" --directory "${ROOT}"
-	return $?
-}
-
 check-portage() {
 	local portage="${1}"
 	local ret=1
@@ -171,10 +158,6 @@ prepare-portage() {
 	fi
 }
 
-extract-portage() {
-	tar --extract --xz --file "${PORTAGE}" --directory "${ROOT}/usr"
-	return $?
-}
 
 prepare-resource() {
 	local ret=0
@@ -189,10 +172,22 @@ prepare-resource() {
 }
 
 open-disk() {
-	swapon "${DEV}3"
-
 	mkdir --parents "${ROOT}"
-	mount "${DEV}4" "${ROOT}"
+
+	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
+		if [[ ! -z "${ENABLESWAP}" ]]; then
+			swapon "${DEV}3"
+
+			mount "${DEV}4" "${ROOT}"
+		else
+			mount "${DEV}3" "${ROOT}"
+		fi
+	else
+		if [[ ! -z "${ENABLESWAP}" ]]; then
+			swapon "/dev/${VGNAME}/${SWAPLABEL}"
+		fi
+		mount "/dev/${VGNAME}/${ROOTLABEL}" "${ROOT}"
+	fi
 
 	mkdir --parents "${ROOT}/boot"
 	mount "${DEV}2" "${ROOT}/boot"
@@ -201,9 +196,13 @@ open-disk() {
 }
 
 prepare-disk() {
-	local offset=$((67 + MEMSIZE))
-	parted --script --align=opt "${DEV}" "mktable gpt"
-	parted --align=opt "${DEV}" <<EOF
+	local memsize=$(getmemsize)
+	local offset=$((67 + ${memsize}))
+	local cmds=
+
+	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
+		if [[ ! -z "${ENABLESWAP}" ]]; then
+			cmds="$(cat <<EOF
 unit mib
 mkpart primary 1 3
 name 1 grub
@@ -217,16 +216,91 @@ mkpart primary ext4 ${offset} 100%
 name 4 root
 quit
 EOF
-	until [[ -e "${DEV}4" ]]
+)"
+		else
+			cmds="$(cat <<EOF
+unit mib
+mkpart primary 1 3
+name 1 grub
+set 1 bios_grub on
+mkpart ESI fat32 3 67
+name 2 boot
+set 2 boot on
+mkpart primary ext4 67 100%
+name 3 root
+quit
+EOF
+)"
+		fi
+	else
+		cmds="$(cat <<EOF
+unit mib
+mkpart primary 1 3
+name 1 grub
+set 1 bios_grub on
+mkpart ESI fat32 3 67
+name 2 boot
+set 2 boot on
+mkpart primary 67 100%
+name 3 linux
+quit
+EOF
+)"
+		lvscan
+		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvremove --force "/dev/${VGNAME}/${SWAPLABEL}"
+		test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvremove --force "/dev/${VGNAME}/${ROOTLABEL}"
+		test -e "/dev/${VGNAME}" && vgremove --force "${VGNAME}"
+	fi
+
+	if ! parted --script --align=opt "${DEV}" "mktable gpt"; then
+		LOGE "initialize ${DEV} failed"
+	elif ! echo "${cmds}" | parted --align=opt "${DEV}"; then
+		LOGE "partion  ${DEV} failed"
+	fi
+
+	sleep 0.3
+	until [[ -e "${DEV}2" && -e "${DEV}3" ]]
 	do
 		sleep 0.3
 	done
 
-	mkfs.vfat -F 32 -n BOOT "${DEV}2"
-	mkswap --force --label="${SWAPLABEL}" "${DEV}3"
-	mkfs.ext4 -L "${ROOTLABEL}" "${DEV}4"
-
-	open-disk
+	if ! mkfs.vfat -F 32 -n BOOT "${DEV}2"; then
+		LOGE "format boot failed"
+	else
+		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
+			if [[ ! -z "${ENABLESWAP}" ]]; then
+				if ! mkswap --force --label="${SWAPLABEL}" "${DEV}3"; then
+					LOGE "mkswap failed"
+				elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "${DEV}4"; then
+					LOGE "mkfs.ext4 failed"
+				fi
+			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "${DEV}3"; then
+				LOGE "mkfs.ext4 failed"
+			fi
+		else
+			if [[ -z "${ENABLEDMCRYPT}" ]]; then
+				if ! pvcreate --force --force --yes "${DEV}3"; then
+					LOGE "pvcreate on ${DEV}3 failed"
+				elif ! vgcreate "${VGNAME}" "${DEV}3"; then
+					LOGE "vgcreate ${VGNAME} ${DEV}3 failed"
+				fi
+			else
+				LOGD "dmcrypt"
+			fi
+			if [[ ! -z "${ENABLESWAP}" ]]; then
+				if ! lvcreate --yes --size="${memsize}M" --name="${SWAPLABEL}" "${VGNAME}"; then
+					LOGE "lvcreate failed"
+				elif ! mkswap --force --label="${SWAPLABEL}" "/dev/${VGNAME}/${SWAPLABEL}"; then
+					LOGE "mkswap failed"
+				fi
+			fi
+			if ! lvcreate --yes --extents=100%FREE --name="${ROOTLABEL}" "${VGNAME}"; then
+				LOGE "lvcreate failed"
+			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "/dev/${VGNAME}/${ROOTLABEL}"; then
+				LOGE "mkfs.ext4 failed"
+			fi
+		fi
+	fi
 
     return 0
 }
@@ -234,10 +308,10 @@ EOF
 extract-resource() {
 	local ret=0
 
-	if ! extract-stage3; then
+	if ! tar --extract --preserve-permissions --xattrs-include="*.*" --numeric-owner --file "${STAGE3}" --directory "${ROOT}"; then
 		LOGW "extract stage3 failed"
 		ret=1
-	elif ! extract-portage; then
+	elif ! tar --extract --xz --file "${PORTAGE}" --directory "${ROOT}/usr"; then
 		LOGW "extract portage failed"
 		ret=1
 	fi
@@ -304,16 +378,18 @@ EOF
 
 prepare-chroot() {
 	mount --types proc /proc ${ROOT}/proc
+
 	mount --rbind /sys ${ROOT}/sys
 	mount --make-rslave ${ROOT}/sys
+
 	mount --rbind /dev ${ROOT}/dev
 	mount --make-rslave ${ROOT}/dev
+
 	test -L /dev/shm && rm /dev/shm && mkdir /dev/shm && mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm && chmod 1777 /dev/shm
 	return 0
 }
 
 chroot-into-gentoo-for-repair() {
-	prepare-chroot
 	LOGI "chroot"
 
 	chroot "${ROOT}" /bin/bash
@@ -322,9 +398,6 @@ chroot-into-gentoo-for-repair() {
 }
 
 chroot-into-gentoo() {
-	prepare-chroot
-	LOGI "chroot"
-
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
@@ -332,11 +405,11 @@ emerge --quiet --deep --newuse @world
 emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
 emerge --quiet --depclean
 mv /kernel.config /usr/src/linux/.config
-echo "GRUB_CMDLINE_LINUX=\"init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
 pushd /usr/src/linux/
 make && make modules_install && make install
 popd
-genkernel --udev --install initramfs
+genkernel --udev --lvm --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
@@ -358,10 +431,18 @@ EOF
 }
 
 clean() {
-	cd /
-	LOGI "clean"
-	swapoff "${DEV}3"
-	umount --lazy ${ROOT}/dev{/shm,/pts,}
-	umount --recursive ${ROOT}
+	umount --recursive "${ROOT}"
+
+	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
+		swapoff "${DEV}3"
+	else
+		lvscan
+		if [[ ! -z "${ENABLESWAP}" ]]; then
+			swapoff "/dev/${VGNAME}/${SWAPLABEL}"
+		fi
+		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
+		test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${ROOTLABEL}"
+		test -e "/dev/${VGNAME}" && vgchange --activate=n "${VGNAME}"
+	fi
     return 0
 }
