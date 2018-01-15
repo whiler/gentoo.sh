@@ -199,6 +199,8 @@ prepare-disk() {
 	local memsize=$(getmemsize)
 	local offset=$((67 + ${memsize}))
 	local cmds=
+	local linuxdev=
+	local keypath=
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 		if [[ ! -z "${ENABLESWAP}" ]]; then
@@ -279,13 +281,22 @@ EOF
 			fi
 		else
 			if [[ -z "${ENABLEDMCRYPT}" ]]; then
-				if ! pvcreate --force --force --yes "${DEV}3"; then
-					LOGE "pvcreate on ${DEV}3 failed"
-				elif ! vgcreate "${VGNAME}" "${DEV}3"; then
-					LOGE "vgcreate ${VGNAME} ${DEV}3 failed"
-				fi
+				linuxdev="${DEV}3"
 			else
-				LOGD "dmcrypt"
+				keypath="$(mktemp)"
+				head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
+				if ! cryptsetup luksFormat --batch-mode --key-file="${keypath}" "${DEV}3"; then
+					LOGE "luksFormat ${DEV}3 failed"
+				elif ! cryptsetup luksOpen --key-file="${keypath}" "${DEV}3" "${DMCRYPTNAME}"; then
+					LOGE "luksOpen ${DEV}3 failed"
+				fi
+				rm "${keypath}"
+				linuxdev="/dev/mapper/${DMCRYPTNAME}"
+			fi
+			if ! pvcreate --force --force --yes "${linuxdev}"; then
+				LOGE "pvcreate on ${linuxdev} failed"
+			elif ! vgcreate "${VGNAME}" "${linuxdev}"; then
+				LOGE "vgcreate ${VGNAME} ${linuxdev} failed"
 			fi
 			if [[ ! -z "${ENABLESWAP}" ]]; then
 				if ! lvcreate --yes --size="${memsize}M" --name="${SWAPLABEL}" "${VGNAME}"; then
@@ -322,7 +333,7 @@ extract-resource() {
 config-gentoo() {
 	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
-	echo "MAKEOPTS=\"-j$((CPUCOUNT * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
+	echo "MAKEOPTS=\"-j$(($(getcpucount) * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
 
 	if [[ ! -z "${MIRRORS}" && "http://distfiles.gentoo.org/" != "${MIRRORS}" ]]; then
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
@@ -373,6 +384,9 @@ EOF
 	echo "dev-libs/boost singleton" >> "${ROOT}/etc/portage/package.env"
 	echo "dev-util/cmake singleton" >> "${ROOT}/etc/portage/package.env"
 
+	mkdir --parents "${ROOT}/etc/portage/package.use"
+	echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
+
     return 0
 }
 
@@ -398,18 +412,25 @@ chroot-into-gentoo-for-repair() {
 }
 
 chroot-into-gentoo() {
+	local cmdline=
+	if [[ -z "${ENABLEDMCRYPT}" ]]; then
+		cmdline="dolvm init=/usr/lib/systemd/systemd"
+	else
+		cmdline="crypt_root=${DEV}3 dolvm init=/usr/lib/systemd/systemd"
+	fi
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
 emerge --quiet --deep --newuse @world
-emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
+emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
 emerge --quiet --depclean
 mv /kernel.config /usr/src/linux/.config
-echo "GRUB_CMDLINE_LINUX=\"dolvm init=/usr/lib/systemd/systemd\"" >> /etc/default/grub
+echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
+echo "GRUB_DEVICE_UUID=$(blkid -s UUID -o value -t LABEL="${ROOTLABEL}")" >> /etc/default/grub
 pushd /usr/src/linux/
 make && make modules_install && make install
 popd
-genkernel --udev --lvm --install initramfs
+genkernel --udev --lvm --luks --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
@@ -431,18 +452,19 @@ EOF
 }
 
 clean() {
+	sync
 	umount --recursive "${ROOT}"
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
 		swapoff "${DEV}3"
 	else
-		lvscan
 		if [[ ! -z "${ENABLESWAP}" ]]; then
 			swapoff "/dev/${VGNAME}/${SWAPLABEL}"
 		fi
 		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
 		test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${ROOTLABEL}"
 		test -e "/dev/${VGNAME}" && vgchange --activate=n "${VGNAME}"
+		test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 	fi
     return 0
 }

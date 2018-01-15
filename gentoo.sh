@@ -10,8 +10,9 @@ OPTIONAL=
 
 ENABLEDMCRYPT=
 ENABLELVM=
-ENABLESWAP=Y
+ENABLESWAP=
 VGNAME="gentoo"
+DMCRYPTNAME="encrypted"
 SWAPLABEL="swap"
 ROOTLABEL="root"
 ARCH="amd64"
@@ -28,6 +29,7 @@ CONFIG=
 HOSTNAME=
 TIMEZONE=
 PUBLICKEY=
+DMCRYPTKEY=
 MODE=
 
 install() {
@@ -123,6 +125,11 @@ argparse() {
 
 			--public-key=*)
 				PUBLICKEY="${arg#*=}"
+				shift
+				;;
+
+			--dmcrypt-key=*)
+				DMCRYPTKEY="${arg#*=}"
 				shift
 				;;
 
