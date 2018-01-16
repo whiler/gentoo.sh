@@ -8,6 +8,8 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
+DEBUG=y
+
 ENABLEDMCRYPT=
 ENABLELVM=
 ENABLESWAP=

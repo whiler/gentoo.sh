@@ -160,6 +160,7 @@ prepare-portage() {
 
 
 prepare-resource() {
+	LOGI "prepare resource"
 	local ret=0
 	if ! prepare-stage3; then
 		LOGW "prepare stage3 failed"
@@ -172,6 +173,7 @@ prepare-resource() {
 }
 
 open-disk() {
+	LOGI "open disk"
 	local keypath=
 
 	mkdir --parents "${ROOT}"
@@ -207,6 +209,7 @@ open-disk() {
 }
 
 prepare-disk() {
+	LOGI "prepare disk"
 	local memsize=$(getmemsize)
 	local offset=$((67 + ${memsize}))
 	local cmds=
@@ -328,6 +331,7 @@ EOF
 }
 
 extract-resource() {
+	LOGI "extract resource"
 	local ret=0
 
 	if ! tar --extract --preserve-permissions --xattrs-include="*.*" --numeric-owner --file "${STAGE3}" --directory "${ROOT}"; then
@@ -342,12 +346,16 @@ extract-resource() {
 }
 
 config-gentoo() {
+	LOGI "config gentoo"
 	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
 	echo "MAKEOPTS=\"-j$(($(getcpucount) * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
 
 	if [[ ! -z "${MIRRORS}" && "http://distfiles.gentoo.org/" != "${MIRRORS}" ]]; then
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
+	fi
+	if [[ ! -z "${DEBUG}" ]]; then
+		echo "PORTAGE_BINHOST=\"http://10.0.2.2:10086/packages/\"" >> "${ROOT}/etc/portage/make.conf"
 	fi
 
 	mkdir --parents "${ROOT}/etc/portage/repos.conf"
@@ -377,12 +385,18 @@ EOF
 	mkdir --parents "${ROOT}/root/.ssh"
 	cp --dereference "${PUBLICKEY}" "${ROOT}/root/.ssh/authorized_keys"
 	chmod 0600 "${ROOT}/root/.ssh/authorized_keys"
-
-	cat > "${ROOT}/etc/fstab" <<EOF
+	if [[ -z "${ENABLESWAP}" ]]; then
+		cat > "${ROOT}/etc/fstab" <<EOF
+${DEV}2            /boot auto noauto,noatime 1 2
+LABEL=${ROOTLABEL} /     ext4 noatime        0 1
+EOF
+	else
+		cat > "${ROOT}/etc/fstab" <<EOF
 ${DEV}2            /boot auto noauto,noatime 1 2
 LABEL=${SWAPLABEL} none  swap sw             0 0
 LABEL=${ROOTLABEL} /     ext4 noatime        0 1
 EOF
+	fi
 
 	cp --dereference "${CONFIG}" "${ROOT}/kernel.config"
 
@@ -394,6 +408,7 @@ EOF
 	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
 	echo "dev-libs/boost singleton" >> "${ROOT}/etc/portage/package.env"
 	echo "dev-util/cmake singleton" >> "${ROOT}/etc/portage/package.env"
+	echo "sys-block/thin-provisioning-tools singleton" >> "${ROOT}/etc/portage/package.env"
 
 	mkdir --parents "${ROOT}/etc/portage/package.use"
 	echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
@@ -402,6 +417,7 @@ EOF
 }
 
 prepare-chroot() {
+	LOGI "prepare chroot"
 	mount --types proc /proc ${ROOT}/proc
 
 	mount --rbind /sys ${ROOT}/sys
@@ -423,25 +439,34 @@ chroot-into-gentoo-for-repair() {
 }
 
 chroot-into-gentoo() {
+	LOGI "chroot into gentoo"
 	local cmdline=
+	local opts=
 	if [[ -z "${ENABLEDMCRYPT}" ]]; then
 		cmdline="dolvm init=/usr/lib/systemd/systemd"
 	else
 		cmdline="crypt_root=${DEV}3 dolvm init=/usr/lib/systemd/systemd"
 	fi
+	if [[ ! -z "${DEBUG}" ]]; then
+		opts="--getbinpkg"
+	fi
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
-emerge --quiet --deep --newuse @world
-emerge --quiet sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
+
+emerge --quiet --deep --newuse ${opts} @world
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
 emerge --quiet --depclean
+
 mv /kernel.config /usr/src/linux/.config
+pushd /usr/src/linux/
+make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
+popd
+
+genkernel --loglevel=0 --udev --lvm --luks --install initramfs
+
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
 echo "GRUB_DEVICE_UUID=$(blkid -s UUID -o value -t LABEL="${ROOTLABEL}")" >> /etc/default/grub
-pushd /usr/src/linux/
-make && make modules_install && make install
-popd
-genkernel --udev --lvm --luks --install initramfs
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
@@ -463,6 +488,7 @@ EOF
 }
 
 clean() {
+	LOGI "clean"
 	sync
 	umount --recursive "${ROOT}"
 
