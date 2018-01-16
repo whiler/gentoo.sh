@@ -172,6 +172,8 @@ prepare-resource() {
 }
 
 open-disk() {
+	local keypath=
+
 	mkdir --parents "${ROOT}"
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
@@ -183,6 +185,15 @@ open-disk() {
 			mount "${DEV}3" "${ROOT}"
 		fi
 	else
+		lvscan
+		if [[ ! -z "${ENABLEDMCRYPT}" && ! -e "/dev/mapper/${DMCRYPTNAME}" ]]; then
+			keypath="$(mktemp)"
+			head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
+			if ! cryptsetup luksOpen --key-file="${keypath}" "${DEV}3" "${DMCRYPTNAME}"; then
+				LOGE "luksOpen ${DEV}3 failed"
+			fi
+			rm "${keypath}"
+		fi
 		if [[ ! -z "${ENABLESWAP}" ]]; then
 			swapon "/dev/${VGNAME}/${SWAPLABEL}"
 		fi
