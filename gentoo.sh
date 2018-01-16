@@ -8,6 +8,7 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
+# emerge --buildpkgonly --exclude="virtual/*" @world
 DEBUG=y
 
 ENABLEDMCRYPT=
@@ -79,7 +80,7 @@ repair() {
 argparse() {
 	for arg in "${@}"
 	do
-		case "${arg}" in 
+		case "${arg}" in
 			--dev=*)
 				DEV="${arg#*=}"
 				shift
@@ -182,7 +183,7 @@ main() {
 	elif ! check-runtime; then
 		LOGE "check runtime failed"
 	fi
-	
+
 	if [[ "install" == "${MODE}" ]]; then
 		install
 	elif [[ "repair" == "${MODE}" ]]; then
