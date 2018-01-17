@@ -192,6 +192,7 @@ open-disk() {
 		fi
 	else
 		lvscan
+
 		if [[ ! -z "${ENABLEDMCRYPT}" && ! -e "/dev/mapper/${DMCRYPTNAME}" ]]; then
 			keypath="$(mktemp)"
 			head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
@@ -200,13 +201,27 @@ open-disk() {
 			fi
 			rm "${keypath}"
 		fi
-		until [[ -e "/dev/${VGNAME}/${ROOTLABEL}" ]]
+
+		until [[ -e "/dev/${VGNAME}" ]]
 		do
+			vgchange --activate=y "/dev/${VGNAME}"
 			sleep 0.3
 		done
+
 		if [[ ! -z "${ENABLESWAP}" ]]; then
+			until [[ -e "/dev/${VGNAME}/${SWAPLABEL}" ]]
+			do
+				lvchange --activate=y "/dev/${VGNAME}/${SWAPLABEL}"
+				sleep 0.3
+			done
 			swapon "/dev/${VGNAME}/${SWAPLABEL}"
 		fi
+
+		until [[ -e "/dev/${VGNAME}/${ROOTLABEL}" ]]
+		do
+			lvchange --activate=y "/dev/${VGNAME}/${ROOTLABEL}"
+			sleep 0.3
+		done
 		mount "/dev/${VGNAME}/${ROOTLABEL}" "${ROOT}"
 	fi
 
@@ -463,7 +478,7 @@ eselect profile set default/linux/amd64/17.0/systemd
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.72 =sys-boot/grub-2.02
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.76-r1 =sys-boot/grub-2.02
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
@@ -515,7 +530,7 @@ clean() {
 		fi
 		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
 		test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${ROOTLABEL}"
-		test -e "/dev/${VGNAME}" && vgchange --activate=n "${VGNAME}"
+		test -e "/dev/${VGNAME}" && vgchange --activate=n "/dev/${VGNAME}"
 		test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 	fi
 
