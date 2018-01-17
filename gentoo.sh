@@ -8,9 +8,6 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
-# emerge --buildpkgonly --exclude="virtual/*" @world
-DEBUG=y
-
 ENABLEDMCRYPT=
 ENABLELVM=
 ENABLESWAP=
@@ -22,6 +19,8 @@ ARCH="amd64"
 CPUCOUNT=
 ROOT="/mnt/gentoo"
 
+# emerge --buildpkgonly --quiet $(grep '>>> emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
+DEBUG=
 DEV=
 PLATFORM=
 MIRRORS=
@@ -85,6 +84,11 @@ argparse() {
 	for arg in "${@}"
 	do
 		case "${arg}" in
+			--debug=*)
+				DEBUG="${arg#*=}"
+				shift
+				;;
+
 			--dev=*)
 				DEV="${arg#*=}"
 				shift
