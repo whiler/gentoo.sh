@@ -179,6 +179,10 @@ open-disk() {
 	mkdir --parents "${ROOT}"
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
+		until [[ -e "${DEV}3" ]]
+		do
+			sleep 0.3
+		done
 		if [[ ! -z "${ENABLESWAP}" ]]; then
 			swapon "${DEV}3"
 
@@ -196,6 +200,10 @@ open-disk() {
 			fi
 			rm "${keypath}"
 		fi
+		until [[ -e "/dev/${VGNAME}/${ROOTLABEL}" ]]
+		do
+			sleep 0.3
+		done
 		if [[ ! -z "${ENABLESWAP}" ]]; then
 			swapon "/dev/${VGNAME}/${SWAPLABEL}"
 		fi
@@ -274,7 +282,6 @@ EOF
 		LOGE "partion  ${DEV} failed"
 	fi
 
-	sleep 0.3
 	until [[ -e "${DEV}2" && -e "${DEV}3" ]]
 	do
 		sleep 0.3
@@ -364,8 +371,6 @@ config-gentoo() {
 		sed --in-place --expression="s/rsync.gentoo.org/${RSYNC}/" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
 	fi
 
-	cp --dereference /etc/resolv.conf "${ROOT}/etc/"
-
 	echo "${TIMEZONE}" > "${ROOT}/etc/timezone"
 	cp "${ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${ROOT}/etc/localtime"
 
@@ -418,6 +423,9 @@ EOF
 
 prepare-chroot() {
 	LOGI "prepare chroot"
+
+	cp --dereference --remove-destination --force /etc/resolv.conf "${ROOT}/etc/"
+
 	mount --types proc /proc ${ROOT}/proc
 
 	mount --rbind /sys ${ROOT}/sys
@@ -431,11 +439,11 @@ prepare-chroot() {
 }
 
 chroot-into-gentoo-for-repair() {
-	LOGI "chroot"
+	LOGI "chroot into gentoo for repair"
 
 	chroot "${ROOT}" /bin/bash
 
-	return 0
+	return $?
 }
 
 chroot-into-gentoo() {
@@ -489,8 +497,15 @@ EOF
 
 clean() {
 	LOGI "clean"
-	sync
-	umount --recursive "${ROOT}"
+
+	# resolve (Logical volume * contains a filesystem in use.)
+	# https://ask.fedoraproject.org/en/question/10427/lvm-issue-with-lvremove-logical-volume-contains-a-filesystem-in-use/
+	# https://wiki.archlinux.org/index.php/systemd-timesyncd
+	timedatectl set-ntp false
+	systemctl stop systemd-timedated.service
+
+	umount --recursive --lazy "${ROOT}"
+
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
 		swapoff "${DEV}3"
@@ -503,5 +518,9 @@ clean() {
 		test -e "/dev/${VGNAME}" && vgchange --activate=n "${VGNAME}"
 		test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 	fi
+
+	systemctl start systemd-timedated.service
+	timedatectl set-ntp true
+
     return 0
 }

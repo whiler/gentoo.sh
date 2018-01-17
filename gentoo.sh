@@ -67,10 +67,14 @@ install() {
 
 repair() {
 	if ! open-disk; then
-		LOGE "open disk failed"
+		LOGW "open disk failed"
+	elif ! prepare-chroot; then
+		LOGW "prepare chroot failed"
 	elif ! chroot-into-gentoo-for-repair; then
-		LOGE "chroot failed"
-	elif ! clean; then
+		LOGW "chroot failed"
+	fi
+
+	if ! clean; then
 		LOGW "clean failed"
 	fi
 
