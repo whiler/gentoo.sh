@@ -463,18 +463,36 @@ chroot-into-gentoo-for-repair() {
 
 chroot-into-gentoo() {
 	LOGI "chroot into gentoo"
+
 	local cmdline=
 	local opts=
-	if [[ -z "${ENABLEDMCRYPT}" ]]; then
-		cmdline="dolvm init=/usr/lib/systemd/systemd"
-	else
-		cmdline="crypt_root=${DEV}3 dolvm init=/usr/lib/systemd/systemd"
+	local profile="default/linux/amd64/17.0"
+
+	if [[ ! -z "${ENABLELVM}" && ! "${cmdline}" =~ dolvm ]]; then
+		cmdline="${cmdline} dolvm"
+	fi
+	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
+		if [[ ! "${cmdline}" =~ dolvm ]]; then
+			cmdline="${cmdline} dolvm"
+		fi
+		if [[ ! "${cmdline}" =~ crypt_root=${DEV}3 ]]; then
+			cmdline="${cmdline} crypt_root=${DEV}3"
+		fi
+	fi
+	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
+		if [[ ! "${cmdline}" =~ init=/usr/lib/systemd/systemd ]]; then
+			cmdline="${cmdline} init=/usr/lib/systemd/systemd"
+		fi
+		if [[ ! "${profile}" =~ /systemd ]]; then
+			profile="${profile}/systemd"
+		fi
 	fi
 	if [[ ! -z "${DEBUG}" ]]; then
 		opts="--getbinpkg"
 	fi
+
 	chroot "${ROOT}" /bin/bash <<EOF
-eselect profile set default/linux/amd64/17.0/systemd
+eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
@@ -493,6 +511,11 @@ echo "GRUB_DEVICE_UUID=$(blkid -s UUID -o value -t LABEL="${ROOTLABEL}")" >> /et
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
+EOF
+
+	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
+		chroot "${ROOT}" /bin/bash <<EOF
+env-update && source /etc/profile
 
 systemd-machine-id-setup
 
@@ -507,17 +530,37 @@ systemctl enable systemd-resolved.service
 
 systemctl enable sshd.service
 EOF
+	else
+		chroot "${ROOT}" /bin/bash <<EOF
+env-update && source /etc/profile
+
+for ifname in \$(ls -l /sys/class/net/ | grep pci | cut -d " " -f 9); do
+	echo "config_\${ifname}=dhcp" >> /etc/conf.d/net
+	ln --symbolic --force net.lo "/etc/init.d/net.\${ifname}"
+	ln --symbolic --force "/etc/init.d/net.\${ifname}" "/etc/runlevels/boot/net.\${ifname}"
+done
+
+ln --symbolic --force /etc/init.d/sshd /etc/runlevels/default/sshd
+EOF
+	fi
 	return 0
 }
 
 clean() {
 	LOGI "clean"
+	
+	local inSystemd=
+	if [[ 1 -lt $(ps -efL | grep --count "/lib/systemd/systemd-timesyncd") ]]; then
+		inSystemd=Y
+	fi
 
 	# resolve (Logical volume * contains a filesystem in use.)
 	# https://ask.fedoraproject.org/en/question/10427/lvm-issue-with-lvremove-logical-volume-contains-a-filesystem-in-use/
 	# https://wiki.archlinux.org/index.php/systemd-timesyncd
-	timedatectl set-ntp false
-	systemctl stop systemd-timedated.service
+	if [[ ! -z "${inSystemd}" ]]; then
+		timedatectl set-ntp false
+		systemctl stop systemd-timedated.service
+	fi
 
 	umount --recursive --lazy "${ROOT}"
 
@@ -534,8 +577,10 @@ clean() {
 		test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 	fi
 
-	systemctl start systemd-timedated.service
-	timedatectl set-ntp true
+	if [[ ! -z "${inSystemd}" ]]; then
+		systemctl start systemd-timedated.service
+		timedatectl set-ntp true
+	fi
 
     return 0
 }

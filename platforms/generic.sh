@@ -5,6 +5,7 @@ source "${SCRIPT}/lib/log.sh"
 REQUIRED="${REQUIRED} cryptsetup"
 ENABLEDMCRYPT=Y
 ENABLESWAP=Y
+ENABLESYSTEMD=Y
 
 check-platform-arguments() {
 	local ret=0
