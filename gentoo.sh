@@ -38,8 +38,12 @@ MODE=
 install() {
 	if [[ -z "${CONFIG}" ]]; then
 		LOGE "argument config required"
+	elif [[ ! -f "${CONFIG}" ]]; then
+		LOGE "config ${CONFIG} No such file"
 	elif [[ -z "${PUBLICKEY}" ]]; then
 		LOGE "argument public-key required"
+	elif [[ ! -f "${PUBLICKEY}" ]]; then
+		LOGE "public-key ${PUBLICKEY} No such file"
 	fi
 
 	if ! prepare-resource; then
@@ -176,7 +180,7 @@ main() {
 		LOGE "no such dev ${DEV}"
 	elif [[ ! -b "${DEV}" ]]; then
 		LOGE "dev ${DEV} must be block device"
-	elif [[ ! -e "${SCRIPT}/platforms/${PLATFORM}.sh" ]]; then
+	elif [[ ! -f "${SCRIPT}/platforms/${PLATFORM}.sh" ]]; then
 		LOGE "unsupported platform ${PLATFORM}"
 	else
 		source "${SCRIPT}/platforms/${PLATFORM}.sh"
