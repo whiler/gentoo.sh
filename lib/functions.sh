@@ -525,7 +525,7 @@ env-update && source /etc/profile
 systemd-machine-id-setup
 
 echo "[Match]" >>   /etc/systemd/network/50-dhcp.network
-echo "Name=en*" >>  /etc/systemd/network/50-dhcp.network
+echo "Name=e[nt]*" >>  /etc/systemd/network/50-dhcp.network
 echo "[Network]" >> /etc/systemd/network/50-dhcp.network
 echo "DHCP=yes" >>  /etc/systemd/network/50-dhcp.network
 systemctl enable systemd-networkd.service
