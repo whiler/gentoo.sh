@@ -295,14 +295,18 @@ EOF
 		LOGE "initialize ${DEV} failed"
 	elif ! echo "${cmds}" | parted --align=opt "${DEV}"; then
 		LOGE "partion  ${DEV} failed"
+	elif ! partprobe "${DEV}"; then
+		LOGE "partprobe ${DEV} failed"
 	fi
 
-	until [[ -e "${DEV}2" ]]
+	sleep 1.3
+
+	until [[ -e "${DEV}2" && -b "${DEV}2" ]]
 	do
 		sleep 0.3
 	done
 
-	until [[ -e "${DEV}3" ]]
+	until [[ -e "${DEV}3" && -b "${DEV}3" ]]
 	do
 		sleep 0.3
 	done
