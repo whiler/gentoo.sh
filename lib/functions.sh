@@ -575,9 +575,11 @@ clean() {
 		umount --recursive --lazy "${ROOT}"
 
 		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
-			swapoff "${DEV}3"
+			if [[ 0 -lt $(swapon --summary | grep --count "${DEV}3") ]]; then
+				swapoff "${DEV}3"
+			fi
 		else
-			if [[ ! -z "${ENABLESWAP}" ]]; then
+			if [[ ! -z "${ENABLESWAP}" && 0 -lt $(swapon --summary | grep --count "$(realpath "/dev/${VGNAME}/${SWAPLABEL}")") ]]; then
 				swapoff "/dev/${VGNAME}/${SWAPLABEL}"
 			fi
 			test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
