@@ -297,7 +297,12 @@ EOF
 		LOGE "partion  ${DEV} failed"
 	fi
 
-	until [[ -e "${DEV}2" && -e "${DEV}3" ]]
+	until [[ -e "${DEV}2" ]]
+	do
+		sleep 0.3
+	done
+
+	until [[ -e "${DEV}3" ]]
 	do
 		sleep 0.3
 	done
@@ -562,19 +567,20 @@ clean() {
 		systemctl stop systemd-timedated.service
 	fi
 
-	umount --recursive --lazy "${ROOT}"
+	if [[ 0 -lt $(mount | grep --count "${ROOT}") ]]; then
+		umount --recursive --lazy "${ROOT}"
 
-
-	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
-		swapoff "${DEV}3"
-	else
-		if [[ ! -z "${ENABLESWAP}" ]]; then
-			swapoff "/dev/${VGNAME}/${SWAPLABEL}"
+		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
+			swapoff "${DEV}3"
+		else
+			if [[ ! -z "${ENABLESWAP}" ]]; then
+				swapoff "/dev/${VGNAME}/${SWAPLABEL}"
+			fi
+			test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
+			test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${ROOTLABEL}"
+			test -e "/dev/${VGNAME}" && vgchange --activate=n "/dev/${VGNAME}"
+			test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 		fi
-		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${SWAPLABEL}"
-		test -e "/dev/${VGNAME}/${ROOTLABEL}" && lvchange --activate=n "/dev/${VGNAME}/${ROOTLABEL}"
-		test -e "/dev/${VGNAME}" && vgchange --activate=n "/dev/${VGNAME}"
-		test -e "/dev/mapper/${DMCRYPTNAME}" && cryptsetup luksClose "/dev/mapper/${DMCRYPTNAME}"
 	fi
 
 	if [[ ! -z "${inSystemd}" ]]; then
