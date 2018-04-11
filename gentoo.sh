@@ -8,10 +8,13 @@ source "${SCRIPT}/lib/functions.sh"
 REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
+# {{{ Features
 ENABLEDMCRYPT=
 ENABLELVM=
 ENABLESWAP=
 ENABLESYSTEMD=
+# }}}
+
 VGNAME="gentoo"
 DMCRYPTNAME="encrypted"
 SWAPLABEL="swap"
