@@ -2,6 +2,17 @@
 
 source "${SCRIPT}/lib/log.sh"
 
+# join dev and partition number
+# /dev/sda 1 -> /dev/sda1
+# /dev/nbd0 1 -> /dev/nbd0p1
+getdev() {
+	if [[ "${1}" =~ ^/dev/nbd[0-9]+$ ]]; then
+		echo "${1}p${2}"
+	else
+		echo "${1}${2}"
+	fi
+}
+
 getcpucount() {
 	grep --count processor /proc/cpuinfo
 }
@@ -9,7 +20,8 @@ getcpucount() {
 getmemsize() {
 	local ret=
 	local size=2
-	local KB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+	local KB=
+	KB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
 	if [[ 262144 -ge ${KB} ]]; then
 		ret=256
 	elif [[ 524288 -ge ${KB} ]]; then
@@ -50,7 +62,8 @@ check-runtime() {
 check-stage3() {
 	local stage3="${1}"
 	local chk=0
-	local filename="$(basename "${stage3}")"
+	local filename=
+	filename="$(basename "${stage3}")"
 
 	if [[ -e "${stage3}" && -e "${stage3}.DIGESTS" ]]; then
 		pushd "$(dirname "${stage3}")" > /dev/null
@@ -110,7 +123,8 @@ prepare-stage3() {
 check-portage() {
 	local portage="${1}"
 	local ret=1
-	local filename="$(basename "${portage}")"
+	local filename=
+	filename="$(basename "${portage}")"
 
 	if [[ -e "${portage}" && -e "${portage}.md5sum" ]]; then
 		pushd "$(dirname "${portage}")" > /dev/null
@@ -179,16 +193,16 @@ open-disk() {
 	mkdir --parents "${ROOT}"
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
-		until [[ -e "${DEV}3" ]]
+		until [[ -e "$(getdev "${DEV}" 3)" ]]
 		do
 			sleep 0.3
 		done
 		if [[ ! -z "${ENABLESWAP}" ]]; then
-			swapon "${DEV}3"
+			swapon "$(getdev "${DEV}" 3)"
 
-			mount "${DEV}4" "${ROOT}"
+			mount "$(getdev "${DEV}" 4)" "${ROOT}"
 		else
-			mount "${DEV}3" "${ROOT}"
+			mount "$(getdev "${DEV}" 3)" "${ROOT}"
 		fi
 	else
 		lvscan
@@ -196,8 +210,8 @@ open-disk() {
 		if [[ ! -z "${ENABLEDMCRYPT}" && ! -e "/dev/mapper/${DMCRYPTNAME}" ]]; then
 			keypath="$(mktemp)"
 			head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
-			if ! cryptsetup luksOpen --key-file="${keypath}" "${DEV}3" "${DMCRYPTNAME}"; then
-				LOGE "luksOpen ${DEV}3 failed"
+			if ! cryptsetup luksOpen --key-file="${keypath}" "$(getdev "${DEV}" 3)" "${DMCRYPTNAME}"; then
+				LOGE "luksOpen $(getdev "${DEV}" 3) failed"
 			fi
 			rm "${keypath}"
 		fi
@@ -226,18 +240,20 @@ open-disk() {
 	fi
 
 	mkdir --parents "${ROOT}/boot"
-	mount "${DEV}2" "${ROOT}/boot"
+	mount "$(getdev "${DEV}" 2)" "${ROOT}/boot"
 
 	return 0
 }
 
 prepare-disk() {
 	LOGI "prepare disk"
-	local memsize=$(getmemsize)
-	local offset=$((67 + ${memsize}))
 	local cmds=
 	local linuxdev=
 	local keypath=
+	local memsize=
+	local offset=
+	memsize=$(getmemsize)
+	offset=$((67 + memsize))
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 		if [[ ! -z "${ENABLESWAP}" ]]; then
@@ -301,39 +317,39 @@ EOF
 
 	sleep 1.3
 
-	until [[ -e "${DEV}2" && -b "${DEV}2" ]]
+	until [[ -e "$(getdev "${DEV}" 2)" && -b "$(getdev "${DEV}" 2)" ]]
 	do
 		sleep 0.3
 	done
 
-	until [[ -e "${DEV}3" && -b "${DEV}3" ]]
+	until [[ -e "$(getdev "${DEV}" 3)" && -b "$(getdev "${DEV}" 3)" ]]
 	do
 		sleep 0.3
 	done
 
-	if ! mkfs.vfat -F 32 -n BOOT "${DEV}2"; then
+	if ! mkfs.vfat -F 32 -n BOOT "$(getdev "${DEV}" 2)"; then
 		LOGE "format boot failed"
 	else
 		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 			if [[ ! -z "${ENABLESWAP}" ]]; then
-				if ! mkswap --force --label="${SWAPLABEL}" "${DEV}3"; then
+				if ! mkswap --force --label="${SWAPLABEL}" "$(getdev "${DEV}" 3)"; then
 					LOGE "mkswap failed"
-				elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "${DEV}4"; then
+				elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 4)"; then
 					LOGE "mkfs.ext4 failed"
 				fi
-			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "${DEV}3"; then
+			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 3)"; then
 				LOGE "mkfs.ext4 failed"
 			fi
 		else
 			if [[ -z "${ENABLEDMCRYPT}" ]]; then
-				linuxdev="${DEV}3"
+				linuxdev="$(getdev "${DEV}" 3)"
 			else
 				keypath="$(mktemp)"
 				head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
-				if ! cryptsetup luksFormat --batch-mode --key-file="${keypath}" "${DEV}3"; then
-					LOGE "luksFormat ${DEV}3 failed"
-				elif ! cryptsetup luksOpen --key-file="${keypath}" "${DEV}3" "${DMCRYPTNAME}"; then
-					LOGE "luksOpen ${DEV}3 failed"
+				if ! cryptsetup luksFormat --batch-mode --key-file="${keypath}" "$(getdev "${DEV}" 3)"; then
+					LOGE "luksFormat $(getdev "${DEV}" 3) failed"
+				elif ! cryptsetup luksOpen --key-file="${keypath}" "$(getdev "${DEV}" 3)" "${DMCRYPTNAME}"; then
+					LOGE "luksOpen $(getdev "${DEV}" 3) failed"
 				fi
 				rm "${keypath}"
 				linuxdev="/dev/mapper/${DMCRYPTNAME}"
@@ -416,12 +432,12 @@ EOF
 	chmod 0600 "${ROOT}/root/.ssh/authorized_keys"
 	if [[ -z "${ENABLESWAP}" ]]; then
 		cat > "${ROOT}/etc/fstab" <<EOF
-${DEV}2            /boot auto noauto,noatime 1 2
+$(getdev "${DEV}" 2)            /boot auto noauto,noatime 1 2
 LABEL=${ROOTLABEL} /     ext4 noatime        0 1
 EOF
 	else
 		cat > "${ROOT}/etc/fstab" <<EOF
-${DEV}2            /boot auto noauto,noatime 1 2
+$(getdev "${DEV}" 2)            /boot auto noauto,noatime 1 2
 LABEL=${SWAPLABEL} none  swap sw             0 0
 LABEL=${ROOTLABEL} /     ext4 noatime        0 1
 EOF
@@ -435,9 +451,11 @@ EOF
 
 	mkdir --parents "${ROOT}/etc/portage/env"
 	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
-	echo "dev-libs/boost singleton" >> "${ROOT}/etc/portage/package.env"
-	echo "dev-util/cmake singleton" >> "${ROOT}/etc/portage/package.env"
-	echo "sys-block/thin-provisioning-tools singleton" >> "${ROOT}/etc/portage/package.env"
+	{
+		echo "dev-libs/boost singleton";
+		echo "dev-util/cmake singleton";
+		echo "sys-block/thin-provisioning-tools singleton";
+	} >> "${ROOT}/etc/portage/package.env"
 
 	mkdir --parents "${ROOT}/etc/portage/package.use"
 	echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
@@ -450,13 +468,13 @@ prepare-chroot() {
 
 	cp --dereference --remove-destination --force /etc/resolv.conf "${ROOT}/etc/"
 
-	mount --types proc /proc ${ROOT}/proc
+	mount --types proc /proc "${ROOT}/proc"
 
-	mount --rbind /sys ${ROOT}/sys
-	mount --make-rslave ${ROOT}/sys
+	mount --rbind /sys "${ROOT}/sys"
+	mount --make-rslave "${ROOT}/sys"
 
-	mount --rbind /dev ${ROOT}/dev
-	mount --make-rslave ${ROOT}/dev
+	mount --rbind /dev "${ROOT}/dev"
+	mount --make-rslave "${ROOT}/dev"
 
 	test -L /dev/shm && rm /dev/shm && mkdir /dev/shm && mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm && chmod 1777 /dev/shm
 	return 0
@@ -484,8 +502,8 @@ chroot-into-gentoo() {
 		if [[ ! "${cmdline}" =~ dolvm ]]; then
 			cmdline="${cmdline} dolvm"
 		fi
-		if [[ ! "${cmdline}" =~ crypt_root=${DEV}3 ]]; then
-			cmdline="${cmdline} crypt_root=${DEV}3"
+		if [[ ! "${cmdline}" =~ crypt_root=$(getdev "${DEV}" 3) ]]; then
+			cmdline="${cmdline} crypt_root=$(getdev "${DEV}" 3)"
 		fi
 	fi
 	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
@@ -499,6 +517,10 @@ chroot-into-gentoo() {
 	if [[ ! -z "${DEBUG}" ]]; then
 		opts="--getbinpkg"
 	fi
+
+	# debug
+	LOGD "${cmdline}"
+	return 0
 
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set "${profile}"
@@ -559,7 +581,7 @@ clean() {
 	LOGI "clean"
 	
 	local inSystemd=
-	if [[ 1 -lt $(ps -efL | grep --count "/lib/systemd/systemd-timesyncd") ]]; then
+	if [[ 0 -lt $(pgrep --full --count "/lib/systemd/systemd-timesyncd") ]]; then
 		inSystemd=Y
 	fi
 
@@ -575,8 +597,8 @@ clean() {
 		umount --recursive --lazy "${ROOT}"
 
 		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
-			if [[ 0 -lt $(swapon --summary | grep --count "${DEV}3") ]]; then
-				swapoff "${DEV}3"
+			if [[ 0 -lt $(swapon --summary | grep --count "$(getdev "${DEV}" 3)") ]]; then
+				swapoff "$(getdev "${DEV}" 3)"
 			fi
 		else
 			if [[ ! -z "${ENABLESWAP}" && 0 -lt $(swapon --summary | grep --count "$(realpath "/dev/${VGNAME}/${SWAPLABEL}")") ]]; then
