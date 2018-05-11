@@ -518,10 +518,6 @@ chroot-into-gentoo() {
 		opts="--getbinpkg"
 	fi
 
-	# debug
-	LOGD "${cmdline}"
-	return 0
-
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set "${profile}"
 env-update && source /etc/profile
