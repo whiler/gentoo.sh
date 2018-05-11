@@ -22,6 +22,10 @@ ROOTLABEL="root"
 ARCH="amd64"
 CPUCOUNT=
 ROOT="/mnt/gentoo"
+BOOTUUID=
+CRYPTUUID=
+SWAPUUID=
+ROOTUUID=
 
 # emerge --newuse --deep --oneshot --quiet $(grep '>>> emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
 # emerge --deep --buildpkgonly --quiet $(grep '>>> emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)

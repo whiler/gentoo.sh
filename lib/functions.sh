@@ -330,6 +330,7 @@ EOF
 	if ! mkfs.vfat -F 32 -n BOOT "$(getdev "${DEV}" 2)"; then
 		LOGE "format boot failed"
 	else
+		BOOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 2)")"
 		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 			if [[ ! -z "${ENABLESWAP}" ]]; then
 				if ! mkswap --force --label="${SWAPLABEL}" "$(getdev "${DEV}" 3)"; then
@@ -337,8 +338,12 @@ EOF
 				elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 4)"; then
 					LOGE "mkfs.ext4 failed"
 				fi
+				SWAPUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
+				ROOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 4)")"
 			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 3)"; then
 				LOGE "mkfs.ext4 failed"
+			else
+				ROOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
 			fi
 		else
 			if [[ -z "${ENABLEDMCRYPT}" ]]; then
@@ -353,6 +358,7 @@ EOF
 				fi
 				rm "${keypath}"
 				linuxdev="/dev/mapper/${DMCRYPTNAME}"
+				CRYPTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
 			fi
 			if ! pvcreate --force --force --yes "${linuxdev}"; then
 				LOGE "pvcreate on ${linuxdev} failed"
@@ -364,12 +370,16 @@ EOF
 					LOGE "lvcreate failed"
 				elif ! mkswap --force --label="${SWAPLABEL}" "/dev/${VGNAME}/${SWAPLABEL}"; then
 					LOGE "mkswap failed"
+				else
+					SWAPUUID="$(blkid -o value -s UUID "/dev/${VGNAME}/${SWAPLABEL}")"
 				fi
 			fi
 			if ! lvcreate --yes --extents=100%FREE --name="${ROOTLABEL}" "${VGNAME}"; then
 				LOGE "lvcreate failed"
 			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "/dev/${VGNAME}/${ROOTLABEL}"; then
 				LOGE "mkfs.ext4 failed"
+			else
+				ROOTUUID="$(blkid -o value -s UUID "/dev/${VGNAME}/${ROOTLABEL}")"
 			fi
 		fi
 	fi
@@ -432,14 +442,14 @@ EOF
 	chmod 0600 "${ROOT}/root/.ssh/authorized_keys"
 	if [[ -z "${ENABLESWAP}" ]]; then
 		cat > "${ROOT}/etc/fstab" <<EOF
-$(getdev "${DEV}" 2)            /boot auto noauto,noatime 1 2
-LABEL=${ROOTLABEL} /     ext4 noatime        0 1
+UUID=${BOOTUUID} /boot auto noauto,noatime 1 2
+UUID=${ROOTUUID} /     ext4 noatime        0 1
 EOF
 	else
 		cat > "${ROOT}/etc/fstab" <<EOF
-$(getdev "${DEV}" 2)            /boot auto noauto,noatime 1 2
-LABEL=${SWAPLABEL} none  swap sw             0 0
-LABEL=${ROOTLABEL} /     ext4 noatime        0 1
+UUID=${BOOTUUID} /boot auto noauto,noatime 1 2
+UUID=${SWAPUUID} none  swap sw             0 0
+UUID=${ROOTUUID} /     ext4 noatime        0 1
 EOF
 	fi
 
@@ -502,8 +512,8 @@ chroot-into-gentoo() {
 		if [[ ! "${cmdline}" =~ dolvm ]]; then
 			cmdline="${cmdline} dolvm"
 		fi
-		if [[ ! "${cmdline}" =~ crypt_root=$(getdev "${DEV}" 3) ]]; then
-			cmdline="${cmdline} crypt_root=$(getdev "${DEV}" 3)"
+		if [[ ! "${cmdline}" =~ crypt_root= ]]; then
+			cmdline="${cmdline} crypt_root=UUID=\"${CRYPTUUID}\""
 		fi
 	fi
 	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
@@ -534,7 +544,7 @@ popd
 genkernel --loglevel=0 --udev --lvm --luks --install initramfs
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
-echo "GRUB_DEVICE_UUID=$(blkid -s UUID -o value -t LABEL="${ROOTLABEL}")" >> /etc/default/grub
+echo "GRUB_DEVICE=UUID=\"${ROOTUUID}\"" >> /etc/default/grub
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
