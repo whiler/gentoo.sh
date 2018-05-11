@@ -402,7 +402,7 @@ config-gentoo() {
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
 	fi
 	if [[ ! -z "${DEBUG}" ]]; then
-		echo "PORTAGE_BINHOST=\"http://10.0.2.2:10086/packages/\"" >> "${ROOT}/etc/portage/make.conf"
+		echo "PORTAGE_BINHOST=\"http://10.0.2.2:10086/packages/${PLATFORM}\"" >> "${ROOT}/etc/portage/make.conf"
 	fi
 
 	mkdir --parents "${ROOT}/etc/portage/repos.conf"
