@@ -533,7 +533,7 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.76-r1 =sys-boot/grub-2.02
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
@@ -541,7 +541,7 @@ pushd /usr/src/linux/
 make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
 popd
 
-genkernel --loglevel=0 --udev --lvm --luks --install initramfs
+genkernel --loglevel=0 --udev --lvm --luks --virtio --install initramfs
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
 echo "GRUB_DEVICE=UUID=\"${ROOTUUID}\"" >> /etc/default/grub
