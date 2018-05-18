@@ -533,7 +533,7 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
