@@ -43,6 +43,7 @@ TIMEZONE=
 PUBLICKEY=
 DMCRYPTKEY=
 MODE=
+USRNAME=
 
 install() {
 	if [[ -z "${CONFIG}" ]]; then
@@ -69,6 +70,8 @@ install() {
 		LOGW "prepare chroot failed"
 	elif ! chroot-into-gentoo; then
 		LOGW "chroot into gentoo failed"
+	elif ! custom-gentoo; then
+		LOGW "custom gentoo failed"
 	fi
 
 	if ! clean; then
@@ -160,6 +163,11 @@ argparse() {
 
 			--mode=*)
 				MODE="${arg#*=}"
+				shift
+				;;
+
+			--username=*)
+				USRNAME="${arg#*=}"
 				shift
 				;;
 
