@@ -538,7 +538,7 @@ chroot-into-gentoo() {
 		genopts="--lvm"
 	fi
 
-	chroot "${ROOT}" /bin/bash <<EOF
+	chroot "${ROOT}" /bin/bash << DOCHERE
 eselect profile set "${profile}"
 env-update && source /etc/profile
 
@@ -558,7 +558,48 @@ echo "GRUB_DEVICE=UUID=\"${ROOTUUID}\"" >> /etc/default/grub
 grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
+
+mergefile() {
+	local path=
+	local name=
+	local value=
+	path="\${1}"
+	while read item
+	do
+		name=\$(echo "\${item}" | cut --delimiter=" " --fields=1)
+		value="\${item//\//\\\/}"
+		sed -i -e "s/^\(\${name}\s.*\)/#\1/" "\${path}" 
+		sed -i "0,/^#\${name}\s.*/s//\${value}/" "\${path}"
+		if [[ 0 -eq \$(grep --extended-regexp --count "^\${name}\s" "\${path}") ]]; then
+			echo "# added by script" >> "\${path}"
+			echo "\${item}" >> "\${path}"
+		fi
+	done
+}
+
+cat << EOF | mergefile /etc/ssh/sshd_config
+PermitRootLogin no
+ChallengeResponseAuthentication no
+PasswordAuthentication no
+PermitEmptyPasswords no
+UsePAM no
+AuthenticationMethods publickey
+PubkeyAuthentication yes
+ClientAliveInterval 300
+ClientAliveCountMax 0
+IgnoreRhosts yes
+HostbasedAuthentication no
+HostKey /etc/ssh/ssh_host_ed25519_key
+KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
+LogLevel VERBOSE
+Subsystem sftp /usr/lib/ssh/sftp-server -f AUTHPRIV -l INFO
+Protocol 2
+X11Forwarding no
+MaxStartups 2
 EOF
+DOCHERE
 
 	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
 		chroot "${ROOT}" /bin/bash <<EOF
