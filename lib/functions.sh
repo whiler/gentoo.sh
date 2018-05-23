@@ -468,7 +468,9 @@ EOF
 	} >> "${ROOT}/etc/portage/package.env"
 
 	mkdir --parents "${ROOT}/etc/portage/package.use"
-	echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
+	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
+		echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
+	fi
 
     return 0
 }
@@ -504,6 +506,8 @@ chroot-into-gentoo() {
 	local cmdline=
 	local opts=
 	local profile="default/linux/amd64/17.0"
+	local pkgs=
+	local genopts=
 
 	if [[ ! -z "${ENABLELVM}" && ! "${cmdline}" =~ dolvm ]]; then
 		cmdline="${cmdline} dolvm"
@@ -528,12 +532,18 @@ chroot-into-gentoo() {
 		opts="--getbinpkg"
 	fi
 
+	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
+		genopts="--lvm --luks"
+	elif [[ ! -z "${ENABLELVM}" ]]; then
+		genopts="--lvm"
+	fi
+
 	chroot "${ROOT}" /bin/bash <<EOF
 eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-fs/cryptsetup =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 ${pkgs}
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
@@ -541,7 +551,7 @@ pushd /usr/src/linux/
 make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
 popd
 
-genkernel --loglevel=0 --udev --lvm --luks --virtio --install initramfs
+genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
 echo "GRUB_DEVICE=UUID=\"${ROOTUUID}\"" >> /etc/default/grub
