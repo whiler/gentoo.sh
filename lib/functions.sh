@@ -634,3 +634,19 @@ clean() {
 
     return 0
 }
+
+custom-gentoo () {
+	LOGI "custom gentoo"
+	local cmd=
+	cmd="$(platform-gentoo)"
+	if [[ ! -z "${cmd}" ]]; then
+		chroot "${ROOT}" /bin/bash -c "${cmd}"
+		return $?
+	else
+		return 0
+	fi
+}
+
+platform-gentoo() {
+	return 0
+}
