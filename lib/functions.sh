@@ -568,8 +568,8 @@ mergefile() {
 	do
 		name=\$(echo "\${item}" | cut --delimiter=" " --fields=1)
 		value="\${item//\//\\\/}"
-		sed -i -e "s/^\(\${name}\s.*\)/#\1/" "\${path}"
-		sed -i "0,/^#\${name}\s.*/s//\${value}/" "\${path}"
+		sed --in-place --expression="s/^\(\${name}\s.*\)/#\1/" "\${path}"
+		sed --in-place "0,/^#\${name}\s.*/s//\${value}/" "\${path}"
 		if [[ 0 -eq \$(grep --extended-regexp --count "^\${name}\s" "\${path}") ]]; then
 			echo "# added by script" >> "\${path}"
 			echo "\${item}" >> "\${path}"
@@ -599,6 +599,10 @@ Protocol 2
 X11Forwarding no
 MaxStartups 2
 EOF
+
+sed --in-place --expression="s/-w\s//" /lib/systemd/system/iptables-restore.service
+sed --in-place --expression="s/-w\s//" /lib/systemd/system/ip6tables-restore.service
+
 DOCHERE
 
 	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
