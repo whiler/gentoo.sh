@@ -543,7 +543,7 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 ${pkgs}
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 net-firewall/iptables ${pkgs}
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
@@ -568,7 +568,7 @@ mergefile() {
 	do
 		name=\$(echo "\${item}" | cut --delimiter=" " --fields=1)
 		value="\${item//\//\\\/}"
-		sed -i -e "s/^\(\${name}\s.*\)/#\1/" "\${path}" 
+		sed -i -e "s/^\(\${name}\s.*\)/#\1/" "\${path}"
 		sed -i "0,/^#\${name}\s.*/s//\${value}/" "\${path}"
 		if [[ 0 -eq \$(grep --extended-regexp --count "^\${name}\s" "\${path}") ]]; then
 			echo "# added by script" >> "\${path}"
@@ -617,6 +617,10 @@ ln --no-dereference --symbolic --force /run/systemd/resolve/resolv.conf /etc/res
 systemctl enable systemd-resolved.service
 
 systemctl enable sshd.service
+systemctl enable  iptables-store.service
+systemctl enable  iptables-restore.service
+systemctl enable  ip6tables-store.service
+systemctl enable  ip6tables-restore.service
 EOF
 	else
 		chroot "${ROOT}" /bin/bash <<EOF
@@ -625,10 +629,15 @@ env-update && source /etc/profile
 for ifname in \$(ls -l /sys/class/net/ | grep pci | cut -d " " -f 9); do
 	echo "config_\${ifname}=dhcp" >> /etc/conf.d/net
 	ln --symbolic --force net.lo "/etc/init.d/net.\${ifname}"
-	ln --symbolic --force "/etc/init.d/net.\${ifname}" "/etc/runlevels/boot/net.\${ifname}"
+	rc-update add "net.\${ifname}" boot
 done
 
-ln --symbolic --force /etc/init.d/sshd /etc/runlevels/default/sshd
+rc-update add sshd default
+
+rc-service iptables save
+rc-update add iptables default
+rc-service ip6tables save
+rc-update add ip6tables default
 EOF
 	fi
 	return 0
@@ -636,7 +645,7 @@ EOF
 
 clean() {
 	LOGI "clean"
-	
+
 	local inSystemd=
 	if [[ 0 -lt $(pgrep --full --count "/lib/systemd/systemd-timesyncd") ]]; then
 		inSystemd=Y
