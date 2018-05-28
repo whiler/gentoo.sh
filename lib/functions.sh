@@ -603,6 +603,100 @@ EOF
 sed --in-place --expression="s/-w\s//" /lib/systemd/system/iptables-restore.service
 sed --in-place --expression="s/-w\s//" /lib/systemd/system/ip6tables-restore.service
 
+mkdir --parents /var/lib/iptables
+cat >> /var/lib/iptables/rules-save << EOF 
+*nat
+:PREROUTING ACCEPT [12:4838]
+:INPUT ACCEPT [7:1958]
+:OUTPUT ACCEPT [8:887]
+:POSTROUTING ACCEPT [8:887]
+COMMIT
+
+*mangle
+:PREROUTING ACCEPT [101:6196]
+:INPUT ACCEPT [101:6196]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [56:9240]
+:POSTROUTING ACCEPT [56:9240]
+-A PREROUTING -m conntrack --ctstate INVALID -m comment --comment "Block Invalid Packets" -j DROP
+-A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -m comment --comment "Block New Packets That Are Not SYN" -j DROP
+-A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block Uncommon MSS Values" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN FIN,SYN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags SYN,RST SYN,RST -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,RST FIN,RST -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,ACK FIN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags ACK,URG URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,ACK FIN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags PSH,ACK PSH -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,PSH,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,PSH,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,ACK,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -f -m comment --comment "Blocks fragmented packets" -j DROP
+COMMIT
+
+*filter
+:INPUT ACCEPT [1:576]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [56:9240]
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Allow incoming TCP RST packets" -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Protection against port scanning" -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j DROP
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "Allow related connections" -j ACCEPT
+-A INPUT -p tcp -m connlimit --connlimit-above 64 --connlimit-mask 32 --connlimit-saddr -m comment --comment "Rejects connections from hosts that have more than 64 established connections" -j REJECT --reject-with tcp-reset
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name DEFAULT --mask 255.255.255.255 --rsource -m comment --comment "record ssh connection"
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask 255.255.255.255 --rsource -m comment --comment "SSH brute-force protection" -j DROP
+-A INPUT -p tcp -m conntrack --ctstate NEW -m limit --limit 32/sec --limit-burst 20 -m comment --comment "Allow the new TCP connections that a client can establish per second under limit" -j ACCEPT
+-A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j DROP
+COMMIT
+EOF
+
+mkdir --parents /var/lib/ip6tables
+cat >> /var/lib/ip6tables/rules-save << EOF
+*mangle
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [1:90]
+:POSTROUTING ACCEPT [1:90]
+-A PREROUTING -m conntrack --ctstate INVALID -m comment --comment "Block Invalid Packets" -j DROP
+-A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -m comment --comment "Block New Packets That Are Not SYN" -j DROP
+-A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block Uncommon MSS Values" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN FIN,SYN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags SYN,RST SYN,RST -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,RST FIN,RST -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,ACK FIN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags ACK,URG URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,ACK FIN -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags PSH,ACK PSH -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,PSH,ACK,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,PSH,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,PSH,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+-A PREROUTING -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,SYN,RST,ACK,URG -m comment --comment "Block Packets With Bogus TCP Flags" -j DROP
+COMMIT
+
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [1:90]
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Allow incoming TCP RST packets" -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Protection against port scanning" -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j DROP
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "Allow related connections" -j ACCEPT
+-A INPUT -p tcp -m connlimit --connlimit-above 64 --connlimit-mask 128 --connlimit-saddr -m comment --comment "Rejects connections from hosts that have more than 64 established connections" -j REJECT --reject-with tcp-reset
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name DEFAULT --mask ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff --rsource -m comment --comment "record ssh connection"
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff --rsource -m comment --comment "SSH brute-force protection" -j DROP
+-A INPUT -p tcp -m conntrack --ctstate NEW -m limit --limit 32/sec --limit-burst 20 -m comment --comment "Allow the new TCP connections that a client can establish per second under limit" -j ACCEPT
+-A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j DROP
+COMMIT
+EOF
+
 DOCHERE
 
 	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
@@ -638,9 +732,7 @@ done
 
 rc-update add sshd default
 
-rc-service iptables save
 rc-update add iptables default
-rc-service ip6tables save
 rc-update add ip6tables default
 EOF
 	fi
