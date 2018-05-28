@@ -27,8 +27,8 @@ CRYPTUUID=
 SWAPUUID=
 ROOTUUID=
 
-# emerge --newuse --deep --oneshot --quiet $(grep '>>> emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
-# emerge --deep --buildpkgonly --quiet $(grep '>>> emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
+# emerge --newuse --deep --oneshot --quiet $(grep 'completed emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
+# emerge --deep --buildpkgonly --quiet $(grep 'completed emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
 # usr/portage/packages
 DEBUG=
 DEV=
