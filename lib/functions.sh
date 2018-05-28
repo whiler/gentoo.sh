@@ -482,9 +482,6 @@ EOF
 
 	sed --in-place --expression="s/root:\*:10770:0:::::/root::10770:0:::::/" "${ROOT}/etc/shadow"
 
-	mkdir --parents "${ROOT}/root/.ssh"
-	cp --dereference "${PUBLICKEY}" "${ROOT}/root/.ssh/authorized_keys"
-	chmod 0600 "${ROOT}/root/.ssh/authorized_keys"
 	if [[ -z "${ENABLESWAP}" ]]; then
 		cat > "${ROOT}/etc/fstab" <<EOF
 UUID=${BOOTUUID} /boot auto noauto,noatime 1 2
@@ -690,6 +687,34 @@ EOF
 	return 0
 }
 
+add-dailyuser() {
+	local password=
+	local authorized=
+	password="$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=64 | xargs)"
+	authorized="$(cat "${PUBLICKEY}")"
+
+	chroot "${ROOT}" /bin/bash << DOCHERE
+useradd --create-home --groups users,wheel --no-user-group --comment "daily user" ${USRNAME}
+cat << EOF | passwd ${USRNAME}
+${password}
+${password}
+EOF
+
+mkdir --parents /home/${USRNAME}/.ssh
+echo "${authorized}" > /home/${USRNAME}/.ssh/authorized_keys
+chmod 0600 /home/${USRNAME}/.ssh/authorized_keys
+chown --recursive ${USRNAME}:users /home/${USRNAME}/.ssh
+
+chmod u+w /etc/sudoers
+sed --in-place --expression "s/# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
+if [[ 0 -eq \$(grep --extended-regexp --count "^%wheel\\sALL=\\(ALL\\)\\sNOPASSWD:\\sALL$" /etc/sudoers) ]]; then
+	echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+fi
+chmod u-w /etc/sudoers
+DOCHERE
+	return 0
+}
+
 chroot-into-gentoo() {
 	LOGI "chroot into gentoo"
 
@@ -733,7 +758,7 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 net-firewall/iptables ${pkgs}
+emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 net-firewall/iptables app-admin/sudo ${pkgs}
 emerge --quiet --depclean
 
 mv /kernel.config /usr/src/linux/.config
@@ -750,6 +775,7 @@ grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
 DOCHERE
 
+	add-dailyuser
 	config-iptables
 	enable-service
 

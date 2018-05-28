@@ -184,6 +184,7 @@ argparse() {
 	HOSTNAME="${HOSTNAME:="gentoo"}"
 	TIMEZONE="${TIMEZONE:="UTC"}"
 	MODE="${MODE:="install"}"
+	USRNAME="${USRNAME:="gentoo"}"
 
 	return 0
 }
