@@ -38,6 +38,7 @@ RSYNC=
 STAGE3=
 PORTAGE=
 CONFIG=
+KERNEL=
 HOSTNAME=
 TIMEZONE=
 PUBLICKEY=
@@ -46,9 +47,11 @@ MODE=
 USRNAME=
 
 install() {
-	if [[ -z "${CONFIG}" ]]; then
-		LOGE "argument config required"
-	elif [[ ! -f "${CONFIG}" ]]; then
+	if [[ -z "${CONFIG}" && -z "${KERNEL}" ]]; then
+		LOGE "argument kernel/config required"
+	elif [[ ! -z "${KERNEL}" && ! -f "${KERNEL}" ]]; then
+		LOGE "kernel ${KERNEL} No such file"
+	elif [[ ! -z "${CONFIG}" && ! -f "${CONFIG}" ]]; then
 		LOGE "config ${CONFIG} No such file"
 	elif [[ -z "${PUBLICKEY}" ]]; then
 		LOGE "argument public-key required"
@@ -138,6 +141,11 @@ argparse() {
 
 			--config=*)
 				CONFIG="${arg#*=}"
+				shift
+				;;
+
+			--kernel=*)
+				KERNEL="${arg#*=}"
 				shift
 				;;
 

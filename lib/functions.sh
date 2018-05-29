@@ -495,7 +495,12 @@ UUID=${ROOTUUID} /     ext4 noatime        0 1
 EOF
 	fi
 
-	cp --dereference "${CONFIG}" "${ROOT}/kernel.config"
+	if [[ ! -z "${KERNEL}" && -f "${KERNEL}" ]]; then
+		cp --dereference "${KERNEL}" "${ROOT}/kernel.tar.bz2"
+	fi
+	if [[ ! -z "${CONFIG}" && -f "${CONFIG}" ]]; then
+		cp --dereference "${CONFIG}" "${ROOT}/kernel.config"
+	fi
 
 	echo "GRUB_PLATFORMS=\"efi-64 pc\"" >> "${ROOT}/etc/portage/make.conf"
 
@@ -761,20 +766,29 @@ chroot-into-gentoo() {
 		genopts="--lvm"
 	fi
 
+	if [[ -z "${KERNEL}" ]]; then
+		pkgs="sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95"
+	fi
+
 	chroot "${ROOT}" /bin/bash << DOCHERE
 eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95 =sys-boot/grub-2.02-r1 net-firewall/iptables app-admin/sudo ${pkgs}
+emerge --quiet ${opts} =sys-boot/grub-2.02-r1 net-firewall/iptables app-admin/sudo ${pkgs}
 emerge --quiet --depclean
 
-mv /kernel.config /usr/src/linux/.config
-pushd /usr/src/linux/
-make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
-popd
-
-genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
+if [[ -f /kernel.config ]]; then
+	mv /kernel.config /usr/src/linux/.config
+	pushd /usr/src/linux/
+		make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
+	popd
+	
+	genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
+elif [[ -f /kernel.tar.bz2 ]]; then
+	tar --keep-directory-symlink --extract --bzip2 --file=/kernel.tar.bz2 --directory=/
+	rm /kernel.tar.bz2
+fi
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
 echo "GRUB_DEVICE=UUID=\"${ROOTUUID}\"" >> /etc/default/grub
