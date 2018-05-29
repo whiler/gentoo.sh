@@ -552,18 +552,18 @@ sed --in-place --expression="s/-w\s//" /lib/systemd/system/ip6tables-restore.ser
 mkdir --parents /var/lib/iptables
 cat >> /var/lib/iptables/rules-save << EOF 
 *nat
-:PREROUTING ACCEPT [12:4838]
-:INPUT ACCEPT [7:1958]
-:OUTPUT ACCEPT [8:887]
-:POSTROUTING ACCEPT [8:887]
+:PREROUTING ACCEPT [5:2348]
+:INPUT ACCEPT [1:44]
+:OUTPUT ACCEPT [4:182]
+:POSTROUTING ACCEPT [4:182]
 COMMIT
 
 *mangle
-:PREROUTING ACCEPT [101:6196]
-:INPUT ACCEPT [101:6196]
+:PREROUTING ACCEPT [39:2244]
+:INPUT ACCEPT [39:2244]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [56:9240]
-:POSTROUTING ACCEPT [56:9240]
+:OUTPUT ACCEPT [20:1600]
+:POSTROUTING ACCEPT [20:1600]
 -A PREROUTING -m conntrack --ctstate INVALID -m comment --comment "Block Invalid Packets" -j DROP
 -A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -m comment --comment "Block New Packets That Are Not SYN" -j DROP
 -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block Uncommon MSS Values" -j DROP
@@ -584,19 +584,23 @@ COMMIT
 COMMIT
 
 *filter
-:INPUT ACCEPT [1:576]
+:INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [56:9240]
+:OUTPUT ACCEPT [20:1600]
+:LOGGING - [0:0]
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Allow incoming TCP RST packets" -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j LOGGING
 -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Protection against port scanning" -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j LOGGING
 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "Allow related connections" -j ACCEPT
 -A INPUT -p tcp -m connlimit --connlimit-above 64 --connlimit-mask 32 --connlimit-saddr -m comment --comment "Rejects connections from hosts that have more than 64 established connections" -j REJECT --reject-with tcp-reset
 -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name DEFAULT --mask 255.255.255.255 --rsource -m comment --comment "record ssh connection"
--A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask 255.255.255.255 --rsource -m comment --comment "SSH brute-force protection" -j DROP
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask 255.255.255.255 --rsource -m comment --comment "SSH brute-force protection" -j LOGGING
 -A INPUT -p tcp -m conntrack --ctstate NEW -m limit --limit 32/sec --limit-burst 20 -m comment --comment "Allow the new TCP connections that a client can establish per second under limit" -j ACCEPT
--A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j DROP
+-A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j LOGGING
+-A INPUT -j LOGGING
+-A LOGGING -m limit --limit 100/sec --limit-burst 20 -m comment --comment "logging dropped packets" -j LOG --log-prefix "Filter-Dropped: "
+-A LOGGING -j DROP
 COMMIT
 EOF
 
@@ -606,8 +610,8 @@ cat >> /var/lib/ip6tables/rules-save << EOF
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [1:90]
-:POSTROUTING ACCEPT [1:90]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
 -A PREROUTING -m conntrack --ctstate INVALID -m comment --comment "Block Invalid Packets" -j DROP
 -A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -m comment --comment "Block New Packets That Are Not SYN" -j DROP
 -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block Uncommon MSS Values" -j DROP
@@ -629,17 +633,21 @@ COMMIT
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [1:90]
+:OUTPUT ACCEPT [0:0]
+:LOGGING - [0:0]
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Allow incoming TCP RST packets" -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j LOGGING
 -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Protection against port scanning" -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j DROP
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK RST -m comment --comment "Protection against port scanning" -j LOGGING
 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment "Allow related connections" -j ACCEPT
 -A INPUT -p tcp -m connlimit --connlimit-above 64 --connlimit-mask 128 --connlimit-saddr -m comment --comment "Rejects connections from hosts that have more than 64 established connections" -j REJECT --reject-with tcp-reset
 -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name DEFAULT --mask ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff --rsource -m comment --comment "record ssh connection"
--A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff --rsource -m comment --comment "SSH brute-force protection" -j DROP
+-A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 5 --name DEFAULT --mask ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff --rsource -m comment --comment "SSH brute-force protection" -j LOGGING
 -A INPUT -p tcp -m conntrack --ctstate NEW -m limit --limit 32/sec --limit-burst 20 -m comment --comment "Allow the new TCP connections that a client can establish per second under limit" -j ACCEPT
--A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j DROP
+-A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j LOGGING
+-A INPUT -j LOGGING
+-A LOGGING -m limit --limit 100/sec --limit-burst 20 -m comment --comment "logging dropped packets" -j LOG --log-prefix "Filter-Dropped: "
+-A LOGGING -j DROP
 COMMIT
 EOF
 DOCHERE
