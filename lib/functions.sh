@@ -557,18 +557,18 @@ sed --in-place --expression="s/-w\s//" /lib/systemd/system/ip6tables-restore.ser
 mkdir --parents /var/lib/iptables
 cat >> /var/lib/iptables/rules-save << EOF 
 *nat
-:PREROUTING ACCEPT [5:2348]
-:INPUT ACCEPT [1:44]
-:OUTPUT ACCEPT [4:182]
-:POSTROUTING ACCEPT [4:182]
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
 COMMIT
 
 *mangle
-:PREROUTING ACCEPT [39:2244]
-:INPUT ACCEPT [39:2244]
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [20:1600]
-:POSTROUTING ACCEPT [20:1600]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
 -A PREROUTING -m conntrack --ctstate INVALID -m comment --comment "Block Invalid Packets" -j DROP
 -A PREROUTING -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -m comment --comment "Block New Packets That Are Not SYN" -j DROP
 -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block Uncommon MSS Values" -j DROP
@@ -591,7 +591,7 @@ COMMIT
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [20:1600]
+:OUTPUT ACCEPT [0:0]
 :LOGGING - [0:0]
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -m comment --comment "Allow incoming TCP RST packets" -j ACCEPT
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m comment --comment "Limit incoming TCP RST packets to mitigate TCP RST floods" -j LOGGING
