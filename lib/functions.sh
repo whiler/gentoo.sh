@@ -550,12 +550,13 @@ chroot-into-gentoo-for-repair() {
 }
 
 config-iptables() {
-	chroot "${ROOT}" /bin/bash << DOCHERE
-sed --in-place --expression="s/-w\s//" /lib/systemd/system/iptables-restore.service
-sed --in-place --expression="s/-w\s//" /lib/systemd/system/ip6tables-restore.service
+	if [[ ! -z "${ENABLESYSTEMD}" ]]; then
+		sed --in-place --expression="s/-w\s//" "${ROOT}/lib/systemd/system/iptables-restore.service"
+		sed --in-place --expression="s/-w\s//" "${ROOT}/lib/systemd/system/ip6tables-restore.service"
+	fi
 
-mkdir --parents /var/lib/iptables
-cat >> /var/lib/iptables/rules-save << EOF 
+	mkdir --parents "${ROOT}/var/lib/iptables"
+	cat > "${ROOT}/var/lib/iptables/rules-save" << EOF
 *nat
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
@@ -609,8 +610,8 @@ COMMIT
 COMMIT
 EOF
 
-mkdir --parents /var/lib/ip6tables
-cat >> /var/lib/ip6tables/rules-save << EOF
+	mkdir --parents "${ROOT}/var/lib/ip6tables"
+	cat > "${ROOT}/var/lib/ip6tables/rules-save" << EOF
 *mangle
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]
@@ -655,7 +656,7 @@ COMMIT
 -A LOGGING -j DROP
 COMMIT
 EOF
-DOCHERE
+	return 0
 }
 
 enable-service() {
@@ -783,7 +784,7 @@ if [[ -f /kernel.config ]]; then
 	pushd /usr/src/linux/
 		make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
 	popd
-	
+
 	genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
 elif [[ -f /kernel.tar.bz2 ]]; then
 	tar --keep-directory-symlink --extract --bzip2 --file=/kernel.tar.bz2 --directory=/
