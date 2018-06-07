@@ -48,5 +48,3 @@ iptables --table filter --append INPUT --protocol tcp --dport ssh --match conntr
 
 iptables --table filter --append INPUT --protocol tcp --match conntrack --ctstate NEW --match limit --limit 32/s --limit-burst 20 --match comment --comment "Allow the new TCP connections that a client can establish per second under limit" --jump ACCEPT
 iptables --table filter --append INPUT --protocol tcp --match conntrack --ctstate NEW --match comment --comment "Limits the new TCP connections that a client can establish per second" --jump LOGGING
-
-iptables --table filter --append INPUT --jump LOGGING

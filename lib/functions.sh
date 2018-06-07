@@ -606,7 +606,6 @@ COMMIT
 -A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j LOGGING
 -A INPUT -j LOGGING
 -A LOGGING -m limit --limit 100/sec --limit-burst 20 -m comment --comment "logging dropped packets" -j LOG --log-prefix "Filter-Dropped: "
--A LOGGING -j DROP
 COMMIT
 EOF
 
@@ -653,7 +652,6 @@ COMMIT
 -A INPUT -p tcp -m conntrack --ctstate NEW -m comment --comment "Limits the new TCP connections that a client can establish per second" -j LOGGING
 -A INPUT -j LOGGING
 -A LOGGING -m limit --limit 100/sec --limit-burst 20 -m comment --comment "logging dropped packets" -j LOG --log-prefix "Filter-Dropped: "
--A LOGGING -j DROP
 COMMIT
 EOF
 	return 0
