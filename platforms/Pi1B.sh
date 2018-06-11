@@ -1,4 +1,8 @@
 #!/bin/bash
+# Raspberry Pi Model B Rev 2
+# BCM2835
+# ARMv6-compatible processor rev 7 (v6l)
+# 
 
 source "${SCRIPT}/lib/log.sh"
 
