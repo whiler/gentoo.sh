@@ -13,6 +13,9 @@ check-platform-arguments() {
 	elif [[ ! -f "${DMCRYPTKEY}" ]]; then
 		LOGW "dmcrypt-key ${DMCRYPTKEY} No such file"
 		ret=1
+	elif [[ ! -s "${DMCRYPTKEY}" ]]; then
+		LOGW "dmcrypt-key ${DMCRYPTKEY} is empty"
+		ret=1
 	fi
 	return ${ret}
 }

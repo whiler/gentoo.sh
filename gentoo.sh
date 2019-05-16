@@ -21,6 +21,7 @@ DMCRYPTNAME="encrypted"
 SWAPLABEL="swap"
 ROOTLABEL="root"
 ARCH="amd64"
+MARCH=${ARCH}
 CPUCOUNT=
 ROOT="/mnt/gentoo"
 BOOTUUID=

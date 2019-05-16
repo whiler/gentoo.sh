@@ -84,7 +84,7 @@ prepare-stage3() {
 	if [[ -z "${STAGE3}" ]]; then
 		for mirror in ${MIRRORS[@]}
 		do
-			url="${mirror%%/}/releases/${ARCH}/autobuilds/latest-stage3-${ARCH}.txt"
+			url="${mirror%%/}/releases/${ARCH}/autobuilds/latest-stage3-${MARCH}.txt"
 			path="$(curl --silent "${url}" | grep --invert-match --extended-regexp "^#" | cut --delimiter=" " --fields=1)"
 			if [[ -z "${path}" ]]; then
 				LOGW "query the latest-stage3-${ARCH} from ${mirror} failed"
@@ -507,6 +507,7 @@ EOF
 		echo "dev-libs/boost singleton";
 		echo "dev-util/cmake singleton";
 		echo "sys-block/thin-provisioning-tools singleton";
+		echo "sys-devel/binutils singleton";
 	} >> "${ROOT}/etc/portage/package.env"
 
 	mkdir --parents "${ROOT}/etc/portage/package.use"
