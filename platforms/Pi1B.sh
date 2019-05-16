@@ -4,8 +4,6 @@
 # ARMv6-compatible processor rev 7 (v6l)
 # 
 
-source "${SCRIPT}/lib/log.sh"
-
 check-platform-arguments() {
 	return 0
 }

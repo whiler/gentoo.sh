@@ -15,6 +15,7 @@ ENABLESWAP=
 ENABLESYSTEMD=
 # }}}
 
+PROFILE="default/linux/amd64/17.0"
 VGNAME="gentoo"
 DMCRYPTNAME="encrypted"
 SWAPLABEL="swap"

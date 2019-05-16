@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source "${SCRIPT}/lib/log.sh"
-
 # join dev and partition number
 # /dev/sda 1 -> /dev/sda1
 # /dev/nbd0 1 -> /dev/nbd0p1
@@ -44,7 +42,7 @@ check-runtime() {
 	for cmd in ${REQUIRED[@]}
 	do
 		if ! which "${cmd}" > /dev/null; then
-			LOGE "Error! command '${cmd}' not found"
+			LOGE "command '${cmd}' not found"
 			ret=1
 		fi
 	done
@@ -439,7 +437,7 @@ KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
 MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
 LogLevel VERBOSE
-Subsystem sftp /usr/lib/ssh/sftp-server -f AUTHPRIV -l INFO
+Subsystem sftp /usr/lib64/misc/sftp-server
 Protocol 2
 X11Forwarding no
 MaxStartups 2
@@ -455,9 +453,6 @@ config-gentoo() {
 
 	if [[ ! -z "${MIRRORS}" && "http://distfiles.gentoo.org/" != "${MIRRORS}" ]]; then
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
-	fi
-	if [[ ! -z "${DEBUG}" ]]; then
-		echo "PORTAGE_BINHOST=\"http://10.0.2.2:10086/packages/${PLATFORM}\"" >> "${ROOT}/etc/portage/make.conf"
 	fi
 
 	mkdir --parents "${ROOT}/etc/portage/repos.conf"
@@ -538,6 +533,14 @@ prepare-chroot() {
 	mount --make-rslave "${ROOT}/dev"
 
 	test -L /dev/shm && rm /dev/shm && mkdir /dev/shm && mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm && chmod 1777 /dev/shm
+
+	if [[ ! -z "${DEBUG}" ]]; then
+		mkdir --parents "${ROOT}/usr/portage/packages"
+		mkdir --parents "${ROOT}/usr/portage/distfiles"
+		mount --bind "${SCRIPT}/resources/packages" "${ROOT}/usr/portage/packages"
+		mount --bind "${SCRIPT}/resources/distfiles" "${ROOT}/usr/portage/distfiles"
+	fi
+
 	return 0
 }
 
@@ -664,20 +667,20 @@ env-update && source /etc/profile
 
 systemd-machine-id-setup
 
-echo "[Match]" >>   /etc/systemd/network/50-dhcp.network
+echo "[Match]" >>      /etc/systemd/network/50-dhcp.network
 echo "Name=e[nt]*" >>  /etc/systemd/network/50-dhcp.network
-echo "[Network]" >> /etc/systemd/network/50-dhcp.network
-echo "DHCP=yes" >>  /etc/systemd/network/50-dhcp.network
+echo "[Network]" >>    /etc/systemd/network/50-dhcp.network
+echo "DHCP=yes" >>     /etc/systemd/network/50-dhcp.network
 systemctl enable systemd-networkd.service
 
 ln --no-dereference --symbolic --force /run/systemd/resolve/resolv.conf /etc/resolv.conf
 systemctl enable systemd-resolved.service
 
 systemctl enable sshd.service
-systemctl enable  iptables-store.service
-systemctl enable  iptables-restore.service
-systemctl enable  ip6tables-store.service
-systemctl enable  ip6tables-restore.service
+systemctl enable iptables-store.service
+systemctl enable iptables-restore.service
+systemctl enable ip6tables-store.service
+systemctl enable ip6tables-restore.service
 EOF
 	else
 		chroot "${ROOT}" /bin/bash <<EOF
@@ -732,7 +735,7 @@ chroot-into-gentoo() {
 
 	local cmdline=
 	local opts=
-	local profile="default/linux/amd64/17.0"
+	local profile="${PROFILE}"
 	local pkgs=
 	local genopts=
 
@@ -756,7 +759,7 @@ chroot-into-gentoo() {
 		fi
 	fi
 	if [[ ! -z "${DEBUG}" ]]; then
-		opts="--getbinpkg"
+		opts="--getbinpkg --buildpkg"
 	fi
 
 	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
@@ -766,7 +769,7 @@ chroot-into-gentoo() {
 	fi
 
 	if [[ -z "${KERNEL}" ]]; then
-		pkgs="sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware =sys-kernel/gentoo-sources-4.9.95"
+		pkgs="sys-apps/pciutils sys-kernel/genkernel-next sys-kernel/linux-firmware sys-kernel/gentoo-sources"
 	fi
 
 	chroot "${ROOT}" /bin/bash << DOCHERE
@@ -774,13 +777,13 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} =sys-boot/grub-2.02-r1 net-firewall/iptables app-admin/sudo ${pkgs}
+emerge --quiet ${opts} sys-boot/grub net-firewall/iptables app-admin/sudo ${pkgs}
 emerge --quiet --depclean
 
 if [[ -f /kernel.config ]]; then
 	mv /kernel.config /usr/src/linux/.config
 	pushd /usr/src/linux/
-		make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
+		make --quiet olddefconfig && make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
 	popd
 
 	genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs

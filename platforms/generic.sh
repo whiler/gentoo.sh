@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source "${SCRIPT}/lib/log.sh"
-
 REQUIRED="${REQUIRED} cryptsetup"
 ENABLEDMCRYPT=Y
 ENABLESWAP=Y
