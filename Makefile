@@ -6,6 +6,12 @@ PLATFORM ?= base
 DEBUG ?= true
 DMCRYPTPASSWD ?= dMcr794
 
+public:
+	PLATFORM=public $(MAKE) atom
+
+public-repair:
+	MODE=repair $(MAKE) public
+
 generic:
 	PLATFORM=generic $(MAKE) atom
 

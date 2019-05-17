@@ -787,6 +787,10 @@ if [[ -f /kernel.config ]]; then
 		make --quiet olddefconfig && make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
 	popd
 
+	if [[ -e /etc/lvm/lvm.conf ]]; then
+		sed --in-place --expression "s/use_lvmetad = 1/use_lvmetad = 0/" /etc/lvm/lvm.conf
+	fi
+
 	genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
 elif [[ -f /kernel.tar.bz2 ]]; then
 	tar --keep-directory-symlink --extract --bzip2 --file=/kernel.tar.bz2 --directory=/
