@@ -4,9 +4,8 @@
 
 JOBS=$(($(grep --count processor /proc/cpuinfo) * 2 + 1))
 md5=
-tmp=/tmp/kernel
+tmp=$(mktemp --directory)
 name=default
-origin=
 
 pushd /usr/src/linux
 	rm --force linux-*-gentoo-*.tar.bz2
@@ -14,10 +13,6 @@ pushd /usr/src/linux
 	make --quiet --jobs=${JOBS}
 	make --quiet --jobs=${JOBS} modules
 	make --quiet tarbz2-pkg
-	if [[ -e "${tmp}" ]]; then
-		rm --recursive --force "${tmp}"
-	fi
-	mkdir --parents "${tmp}"
 	tar -xjf linux-*-gentoo-*.tar.bz2 -C "${tmp}"
 	rm linux-*-gentoo-*.tar.bz2
 popd
@@ -28,8 +23,6 @@ mv /boot/initramfs-${name}-*-gentoo "${tmp}/boot"
 origin="$(ls ${tmp}/boot/initramfs-${name}-*-gentoo)"
 mv ${origin} ${origin/${name}/genkernel}
 
-pushd "${tmp}"
-	tar -cjf /kernel.${md5}.tar.bz2 .
-popd
+tar -czf /kernel.${md5}.tar.gz  -C "${tmp}" .
 
 rm --recursive --force "${tmp}"
