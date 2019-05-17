@@ -5,6 +5,14 @@ MODE ?= install
 PLATFORM ?= base
 DEBUG ?= true
 DMCRYPTPASSWD ?= dMcr794
+KERNEL ?=
+
+Pi1B:
+	PLATFORM=Pi1B $(MAKE) pi
+
+# can not chroot
+pi:
+	bash gentoo.sh --dev=$(DEV) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --kernel=$(KERNEL)
 
 public:
 	PLATFORM=public $(MAKE) atom

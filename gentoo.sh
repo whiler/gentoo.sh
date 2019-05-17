@@ -24,14 +24,12 @@ ARCH="amd64"
 MARCH=${ARCH}
 CPUCOUNT=
 ROOT="/mnt/gentoo"
+CHROOT=true
 BOOTUUID=
 CRYPTUUID=
 SWAPUUID=
 ROOTUUID=
 
-# emerge --newuse --deep --oneshot --quiet $(grep 'completed emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
-# emerge --deep --buildpkgonly --quiet $(grep 'completed emerge .* to /' /var/log/emerge.log | grep -o -E '[a-z]+-[a-z]+/[^ ]+' | sed -e 's/-[0-9].*$//' | sort -u)
-# usr/portage/packages
 DEBUG=
 DEV=
 PLATFORM=
@@ -49,6 +47,7 @@ MODE=
 USRNAME=
 
 install() {
+	local succ
 	if [[ -z "${CONFIG}" && -z "${KERNEL}" ]]; then
 		LOGE "argument kernel/config required"
 	elif [[ ! -z "${KERNEL}" && ! -f "${KERNEL}" ]]; then
@@ -71,16 +70,20 @@ install() {
 		LOGW "extract resource failed"
 	elif ! config-gentoo; then
 		LOGW "config gentoo failed"
-	elif ! prepare-chroot; then
-		LOGW "prepare chroot failed"
-	elif ! chroot-into-gentoo; then
-		LOGW "chroot into gentoo failed"
-	elif ! custom-gentoo; then
-		LOGW "custom gentoo failed"
+	elif [[ ! -z "${CHROOT}" ]]; then
+		if ! prepare-chroot; then
+			LOGW "prepare chroot failed"
+		elif ! chroot-into-gentoo; then
+			LOGW "chroot into gentoo failed"
+		else
+			succ=true
+		fi
+	else
+		succ=true
 	fi
 
-	if ! clean; then
-		LOGW "clean failed"
+	if test ! -z "${succ}" && ! custom-gentoo; then
+		LOGW "custom gentoo failed"
 	fi
 
 	return 0
@@ -89,14 +92,16 @@ install() {
 repair() {
 	if ! open-disk; then
 		LOGW "open disk failed"
-	elif ! prepare-chroot; then
-		LOGW "prepare chroot failed"
-	elif ! chroot-into-gentoo-for-repair; then
-		LOGW "chroot failed"
-	fi
-
-	if ! clean; then
-		LOGW "clean failed"
+	elif [[ ! -z "${CHROOT}" ]]; then
+		if ! prepare-chroot; then
+			LOGW "prepare chroot failed"
+		elif ! chroot-into-gentoo-for-repair; then
+			LOGW "chroot failed"
+		fi
+	else
+		pushd "${ROOT}"
+			/bin/bash
+		popd
 	fi
 
 	return 0
@@ -210,16 +215,13 @@ main() {
 		LOGE "dev ${DEV} must be block device"
 	elif [[ ! -f "${SCRIPT}/platforms/${PLATFORM}.sh" ]]; then
 		LOGE "unsupported platform ${PLATFORM}"
-	else
-		source "${SCRIPT}/platforms/${PLATFORM}.sh"
-		if ! check-platform-arguments; then
-			LOGE "check platform ${PLATFORM} arguments failed"
-		elif ! init-platform; then
-			LOGE "init platform ${PLATFORM} failed"
-		fi
-	fi
-
-	if [[ 0 -ne ${UID} ]]; then
+	elif ! source "${SCRIPT}/platforms/${PLATFORM}.sh"; then
+		LOGE "source ${SCRIPT}/platforms/${PLATFORM}.sh failed"
+	elif ! check-platform-arguments; then
+		LOGE "check platform ${PLATFORM} arguments failed"
+	elif ! init-platform; then
+		LOGE "init platform ${PLATFORM} failed"
+	elif [[ 0 -ne ${UID} ]]; then
 		LOGE "root privilege required"
 	elif ! check-runtime; then
 		LOGE "check runtime failed"
@@ -231,6 +233,10 @@ main() {
 		repair
 	else
 		LOGW "What do you mean?"
+	fi
+
+	if ! clean; then
+		LOGW "clean failed"
 	fi
 
 	LOGI "enjoy gentoo"

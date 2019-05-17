@@ -397,6 +397,13 @@ extract-resource() {
 		ret=1
 	fi
 
+	if [[ 0 -eq ${ret} && -f "${KERNEL}" ]]; then
+		if ! tar --keep-directory-symlink --extract --gzip --file="${KERNEL}" --directory="${ROOT}"; then
+			LOGW "extract kernel failed"
+			ret=1
+		fi
+	fi
+
     return "${ret}"
 }
 
@@ -475,6 +482,7 @@ config-gentoo() {
 ::1 ${HOSTNAME} localhost
 EOF
 
+	# set passwd of root empty
 	sed --in-place --expression="s/root:\*:10770:0:::::/root::10770:0:::::/" "${ROOT}/etc/shadow"
 
 	if [[ -z "${ENABLESWAP}" ]]; then
@@ -490,9 +498,6 @@ UUID=${ROOTUUID} /     ext4 noatime        0 1
 EOF
 	fi
 
-	if [[ ! -z "${KERNEL}" && -f "${KERNEL}" ]]; then
-		cp --dereference "${KERNEL}" "${ROOT}/kernel.tar.bz2"
-	fi
 	if [[ ! -z "${CONFIG}" && -f "${CONFIG}" ]]; then
 		cp --dereference "${CONFIG}" "${ROOT}/kernel.config"
 	fi
@@ -532,6 +537,10 @@ prepare-chroot() {
 
 	mount --rbind /dev "${ROOT}/dev"
 	mount --make-rslave "${ROOT}/dev"
+
+	# fix grub-mkconfig takes a long time
+	mount --rbind /run "${ROOT}/run"
+	mount --make-rslave "${ROOT}/run"
 
 	test -L /dev/shm && rm /dev/shm && mkdir /dev/shm && mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm && chmod 1777 /dev/shm
 
@@ -792,9 +801,6 @@ if [[ -f /kernel.config ]]; then
 	fi
 
 	genkernel --loglevel=0 ${genopts} --udev --virtio --install initramfs
-elif [[ -f /kernel.tar.bz2 ]]; then
-	tar --keep-directory-symlink --extract --bzip2 --file=/kernel.tar.bz2 --directory=/
-	rm /kernel.tar.bz2
 fi
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
