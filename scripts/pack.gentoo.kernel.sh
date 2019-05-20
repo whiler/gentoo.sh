@@ -23,6 +23,6 @@ mv /boot/initramfs-${name}-*-gentoo "${tmp}/boot"
 origin="$(ls ${tmp}/boot/initramfs-${name}-*-gentoo)"
 mv ${origin} ${origin/${name}/genkernel}
 
-tar -czf /kernel.${md5}.tar.gz  -C "${tmp}" .
+tar --exclude=./boot/vmlinux-* -czf /kernel.${md5}.tar.gz  -C "${tmp}" .
 
 rm --recursive --force "${tmp}"
