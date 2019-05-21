@@ -7,7 +7,6 @@ REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 
 CANCHROOT=true
-ENABLEGRUB=true
 ENABLEGPT=true
 ENABLEDMCRYPT=
 ENABLELVM=
@@ -37,6 +36,7 @@ PORTAGE=
 CONFIG=
 KERNEL=
 NODENAME=
+DOMAIN=
 TIMEZONE=
 PUBLICKEY=
 DMCRYPTKEY=
@@ -108,6 +108,11 @@ argparse() {
 				shift
 				;;
 
+			--domain=*)
+				DOMAIN="${arg#*=}"
+				shift
+				;;
+
 			--timezone=*)
 				TIMEZONE="${arg#*=}"
 				shift
@@ -144,6 +149,7 @@ argparse() {
 	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
 	RSYNC="${RSYNC:="rsync.gentoo.org"}"
 	NODENAME="${NODENAME:="gentoo"}"
+	DOMAIN="${DOMAIN:="local"}"
 	TIMEZONE="${TIMEZONE:="UTC"}"
 	MODE="${MODE:="install"}"
 	USRNAME="${USRNAME:="gentoo"}"
@@ -572,20 +578,20 @@ config-gentoo() {
 	echo "LC_COLLATE=\"C\"" >>     "${ROOT}/etc/env.d/02locale"
 	echo "LANG=\"en_US.UTF-8\"" >> "${ROOT}/etc/env.d/02locale"
 	echo "en_US.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
+    echo "zh_CN.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
 
 	echo "${NODENAME}" > "${ROOT}/etc/hostname"
 	sed --in-place --expression="s/localhost/${NODENAME}/" "${ROOT}/etc/conf.d/hostname"
 	cat > "${ROOT}/etc/hosts" <<EOF
-127.0.0.1	localhost ${NODENAME}
+127.0.0.1	${NODENAME}.${DOMAIN} ${NODENAME} localhost
 
 # The following lines are desirable for IPv6 capable hosts
-::1     localhost ip6-localhost ip6-loopback ${NODENAME}
+::1	${NODENAME}.${DOMAIN} ${NODENAME} localhost ip6-localhost ip6-loopback
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
 	config-fstab > "${ROOT}/etc/fstab"
-
 
 	echo "GRUB_PLATFORMS=\"efi-64 pc\"" >> "${ROOT}/etc/portage/make.conf"
 
@@ -807,9 +813,9 @@ chroot-into-gentoo() {
 eselect profile set "${profile}"
 env-update && source /etc/profile
 
-emerge --quiet --deep --newuse ${opts} @world
-emerge --quiet ${opts} sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs}
-emerge --quiet --depclean
+emerge --quiet --deep --newuse ${opts} @world && \
+emerge --quiet ${opts} sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} && \
+emerge --quiet --depclean || exit 1
 
 test -e /etc/lvm/lvm.conf && sed --in-place --expression "s/use_lvmetad = 1/use_lvmetad = 0/" /etc/lvm/lvm.conf
 
@@ -841,6 +847,10 @@ grub-install --target=i386-pc "${DEV}"
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
 DOCHERE
+
+	if [[ 0 -ne $? ]]; then
+		return $?
+	fi
 
 	ensure-sudoers
 	dump-ipset-entities
