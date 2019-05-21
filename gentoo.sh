@@ -3,15 +3,16 @@
 ABSROOT="$(dirname "$(readlink --canonicalize "$0")")"
 export DTFMT="+[%Y-%m-%d %H:%M:%S %Z]"
 
-REQUIRED="parted mkfs.vfat mkfs.ext4 mkswap swapon swapoff shasum md5sum"
-OPTIONAL=
-
 CANCHROOT=true
 ENABLEGPT=true
 ENABLEDMCRYPT=
 ENABLELVM=
 ENABLESWAP=
 ENABLESYSTEMD=
+RUNNINGDEV=
+ROOTFS=ext4
+REQUIRED="parted mkfs.vfat mkfs.${ROOTFS} mkswap swapon swapoff shasum md5sum"
+OPTIONAL=
 
 PROFILE=default/linux/amd64/17.0
 VGNAME=gentoo
@@ -305,53 +306,53 @@ prepare-disk() {
 	fi
 
 	sleep 1.2
-	until [[ -e "$(getdev "${DEV}" 2)" && -b "$(getdev "${DEV}" 2)" && -e "$(getdev "${DEV}" 3)" && -b "$(getdev "${DEV}" 3)" ]]
+	until [[ -e "$(getpart "${DEV}" 2)" && -b "$(getpart "${DEV}" 2)" && -e "$(getpart "${DEV}" 3)" && -b "$(getpart "${DEV}" 3)" ]]
 	do
 		sleep 0.3
 	done
 	sleep 1.2
 
-	if ! mkfs.vfat -F 32 -n BOOT "$(getdev "${DEV}" 2)"; then
+	if ! mkfs.vfat -F 32 -n BOOT "$(getpart "${DEV}" 2)"; then
 		LOGE "format boot failed"
 		return 1
 	else
-		BOOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 2)")"
+		BOOTUUID="$(blkid -o value -s UUID "$(getpart "${DEV}" 2)")"
 	fi
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 		if [[ ! -z "${ENABLESWAP}" ]]; then
-			if ! mkswap --force --label="${SWAPLABEL}" "$(getdev "${DEV}" 3)"; then
+			if ! mkswap --force --label="${SWAPLABEL}" "$(getpart "${DEV}" 3)"; then
 				LOGE "mkswap failed"
 				return 1
-			elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 4)"; then
-				LOGE "mkfs.ext4 failed"
+			elif ! mkrootfs "$(getpart "${DEV}" 4)"; then
+				LOGE "mkfs.${ROOTFS} failed"
 				return 1
 			fi
-			SWAPUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
-			ROOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 4)")"
-		elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "$(getdev "${DEV}" 3)"; then
-			LOGE "mkfs.ext4 failed"
+			SWAPUUID="$(blkid -o value -s UUID "$(getpart "${DEV}" 3)")"
+			ROOTUUID="$(blkid -o value -s UUID "$(getpart "${DEV}" 4)")"
+		elif ! mkrootfs "$(getpart "${DEV}" 3)"; then
+			LOGE "mkfs.${ROOTFS} failed"
 			return 1
 		else
-			ROOTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
+			ROOTUUID="$(blkid -o value -s UUID "$(getpart "${DEV}" 3)")"
 		fi
 	else
 		if [[ -z "${ENABLEDMCRYPT}" ]]; then
-			linuxdev="$(getdev "${DEV}" 3)"
+			linuxdev="$(getpart "${DEV}" 3)"
 		else
 			keypath="$(mktemp)"
 			head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
-			if ! cryptsetup luksFormat --batch-mode --key-file="${keypath}" "$(getdev "${DEV}" 3)"; then
-				LOGE "luksFormat $(getdev "${DEV}" 3) failed"
+			if ! cryptsetup luksFormat --batch-mode --key-file="${keypath}" "$(getpart "${DEV}" 3)"; then
+				LOGE "luksFormat $(getpart "${DEV}" 3) failed"
 				rm "${keypath}"
 				return 1
-			elif ! cryptsetup luksOpen --key-file="${keypath}" "$(getdev "${DEV}" 3)" "${DMCRYPTNAME}"; then
-				LOGE "luksOpen $(getdev "${DEV}" 3) failed"
+			elif ! cryptsetup luksOpen --key-file="${keypath}" "$(getpart "${DEV}" 3)" "${DMCRYPTNAME}"; then
+				LOGE "luksOpen $(getpart "${DEV}" 3) failed"
 				rm "${keypath}"
 				return 1
 			else
 				linuxdev="/dev/mapper/${DMCRYPTNAME}"
-				CRYPTUUID="$(blkid -o value -s UUID "$(getdev "${DEV}" 3)")"
+				CRYPTUUID="$(blkid -o value -s UUID "$(getpart "${DEV}" 3)")"
 				rm "${keypath}"
 			fi
 		fi
@@ -379,8 +380,8 @@ prepare-disk() {
 		if ! lvcreate --yes --extents=100%FREE --name="${ROOTLABEL}" "${VGNAME}"; then
 			LOGE "lvcreate failed"
 			return 1
-		elif ! mkfs.ext4 -F -L "${ROOTLABEL}" "/dev/${VGNAME}/${ROOTLABEL}"; then
-			LOGE "mkfs.ext4 failed"
+		elif ! mkrootfs "/dev/${VGNAME}/${ROOTLABEL}"; then
+			LOGE "mkfs.${ROOTFS} failed"
 			return 1
 		else
 			ROOTUUID="$(blkid -o value -s UUID "/dev/${VGNAME}/${ROOTLABEL}")"
@@ -398,14 +399,14 @@ open-disk() {
 
 	if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" ]]; then
 		if [[ ! -z "${ENABLESWAP}" ]]; then
-			if ! swapon "$(getdev "${DEV}" 3)"; then
+			if ! swapon "$(getpart "${DEV}" 3)"; then
 				LOGE "swapon failed"
 				return 1
-			elif ! mount "$(getdev "${DEV}" 4)" "${ROOT}"; then
+			elif ! mount "$(getpart "${DEV}" 4)" "${ROOT}"; then
 				LOGE "mount root failed"
 				return 1
 			fi
-		elif ! mount "$(getdev "${DEV}" 3)" "${ROOT}"; then
+		elif ! mount "$(getpart "${DEV}" 3)" "${ROOT}"; then
 			LOGE "mount root failed"
 			return 1
 		fi
@@ -415,8 +416,8 @@ open-disk() {
 		if [[ ! -z "${ENABLEDMCRYPT}" && ! -e "/dev/mapper/${DMCRYPTNAME}" ]]; then
 			keypath="$(mktemp)"
 			head -1 "${DMCRYPTKEY}" | tr --delete "\r\n" | tr --delete "\r" | tr --delete "\n" > "${keypath}"
-			if ! cryptsetup luksOpen --key-file="${keypath}" "$(getdev "${DEV}" 3)" "${DMCRYPTNAME}"; then
-				LOGE "luksOpen $(getdev "${DEV}" 3) failed"
+			if ! cryptsetup luksOpen --key-file="${keypath}" "$(getpart "${DEV}" 3)" "${DMCRYPTNAME}"; then
+				LOGE "luksOpen $(getpart "${DEV}" 3) failed"
 				rm "${keypath}"
 				return 1
 			fi
@@ -453,7 +454,7 @@ open-disk() {
 	fi
 
 	mkdir --parents "${ROOT}/boot"
-	if ! mount "$(getdev "${DEV}" 2)" "${ROOT}/boot"; then
+	if ! mount "$(getpart "${DEV}" 2)" "${ROOT}/boot"; then
 		LOGE "mount boot failed"
 		return 1
 	fi
@@ -467,7 +468,7 @@ clean() {
 	# fix unable to stat /etc/sudoers: Permission denied
 	chmod 755 "${ROOT}"
 
-	if [[ ! -z "${DEBUG}" ]]; then
+	if [[ ! -z "${DEBUG}" && -e "${ROOT}/usr/src/linux/.config" ]]; then
 		md5="$(md5sum "${ROOT}/usr/src/linux/.config" | cut --delimiter=" " --fields=1)"
 		if [[ -e "${ROOT}/kernel.${md5}.tar.gz" && -s "${ROOT}/kernel.${md5}.tar.gz" ]]; then
 			mkdir --parents "${ABSROOT}/resources/firmwares/${PLATFORM}"
@@ -497,8 +498,8 @@ clean() {
 		umount --recursive --lazy "${ROOT}"
 
 		if [[ -z "${ENABLEDMCRYPT}" && -z "${ENABLELVM}" && ! -z "${ENABLESWAP}" ]]; then
-			if [[ 0 -lt $(swapon --summary | grep --count "$(getdev "${DEV}" 3)") ]]; then
-				swapoff "$(getdev "${DEV}" 3)"
+			if [[ 0 -lt $(swapon --summary | grep --count "$(getpart "${DEV}" 3)") ]]; then
+				swapoff "$(getpart "${DEV}" 3)"
 			fi
 		else
 			if [[ ! -z "${ENABLESWAP}" && 0 -lt $(swapon --summary | grep --count "$(realpath "/dev/${VGNAME}/${SWAPLABEL}")") ]]; then
@@ -1028,7 +1029,7 @@ set 1 bios_grub on
 mkpart ESI fat32 3 67
 set 2 boot on
 mkpart primary linux-swap 67 ${offset}
-mkpart primary ext4 ${offset} 100%
+mkpart primary ${offset} 100%
 quit
 EOF
 )"
@@ -1066,12 +1067,40 @@ EOF
 # join dev and partition number
 # /dev/sda 1 -> /dev/sda1
 # /dev/nbd0 1 -> /dev/nbd0p1
-getdev() {
-	if [[ "${1}" =~ ^/dev/nbd[0-9]+$ ]]; then
+# /dev/mmcblk0 1 -> /dev/mmcblk0p1
+getpart() {
+	if [[ "${1}" =~ ^/dev/(nbd|mmcblk)[0-9]+$ ]]; then
 		echo "${1}p${2}"
 	else
 		echo "${1}${2}"
 	fi
+}
+
+getfsdev() {
+	local fs=
+	local n=
+	if [[ ! -z "${RUNNINGDEV}" ]]; then
+		fs="$(findfs "UUID=${1}")"
+		n="$(echo "${fs}" | grep --only-matching --perl-regexp '\d+$')"
+		if [[ ! -z "${n}" ]]; then
+			getpart "${RUNNINGDEV}" "${n}"
+		else
+			echo "${fs}"
+		fi
+	else
+		echo "UUID=${1}"
+	fi
+}
+
+mkrootfs() {
+	if [[ "${ROOTFS}" == ext* ]]; then
+		mkfs.${ROOTFS} -F -L "${ROOTLABEL}" "${1}"
+	elif [[ ${ROOTFS} == "f2fs" ]]; then
+		mkfs.${ROOTFS} -f -l "${ROOTLABEL}" "${1}"
+	else
+		return 1
+	fi
+	return $?
 }
 
 getcpucount() {
@@ -1081,14 +1110,14 @@ getcpucount() {
 config-fstab() {
 	if [[ -z "${ENABLESWAP}" ]]; then
 		cat << EOF
-UUID=${BOOTUUID} /boot auto noauto,noatime 1 2
-UUID=${ROOTUUID} /     ext4 noatime        0 1
+$(getfsdev "${BOOTUUID}") /boot auto noauto,noatime 1 2
+$(getfsdev "${ROOTUUID}") /     ${ROOTFS} noatime        0 1
 EOF
 	else
 		cat << EOF
-UUID=${BOOTUUID} /boot auto noauto,noatime 1 2
-UUID=${SWAPUUID} none  swap sw             0 0
-UUID=${ROOTUUID} /     ext4 noatime        0 1
+$(getfsdev "${BOOTUUID}") /boot auto noauto,noatime 1 2
+$(getfsdev "${SWAPUUID}") none  swap sw             0 0
+$(getfsdev "${ROOTUUID}") /     ${ROOTFS} noatime        0 1
 EOF
 	fi
 }
