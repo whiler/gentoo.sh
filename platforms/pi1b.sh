@@ -7,12 +7,11 @@
 
 RUNNINGDEV=/dev/mmcblk0
 ROOTFS=f2fs
-
+DEVTAB=msdos
 ARCH="arm"
 MARCH="armv6j_hardfp"
-REQUIRED="${REQUIRED} mkfs.f2fs"
 CANCHROOT=
-ENABLEGPT=
+ENABLEBIOS=
 
 check-platform-arguments() {
 	local ret=0
@@ -42,8 +41,8 @@ dwc_otg.lpm_enable=0
 console=ttyAMA0,115200
 kgdboc=ttyAMA0,115200
 console=tty1
-root=$(getfsdev "${ROOTUUID}")
-rootfstype=ext4
+root=$(getfsdev "${ROOTDEV}")
+rootfstype=${ROOTFS}
 elevator=deadline
 rootwait
 EOF

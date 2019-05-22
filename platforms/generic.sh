@@ -2,8 +2,6 @@
 
 REQUIRED="${REQUIRED} cryptsetup"
 ENABLEDMCRYPT=Y
-ENABLESWAP=Y
-ENABLESYSTEMD=
 
 check-platform-arguments() {
 	return 0
