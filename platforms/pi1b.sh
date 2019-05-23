@@ -6,6 +6,9 @@
 # 
 # The partition table must be MSDOS
 # The first partition (/boot) must be vfat fat32
+#
+# Q: close device failed: Remote I/O error
+# A: dd if=/dev/zero of=/dev/sdx
 
 RUNNINGDEV=/dev/mmcblk0
 ROOTFS=f2fs
