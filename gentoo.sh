@@ -601,8 +601,9 @@ EOF
 	x-useradd "${USRNAME}" users,wheel
 	x-chpasswd "${USRNAME}" "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
 
-	echo "auth required   pam_wheel.so group=wheel"   >> "${ROOT}/etc/pam.d/su"
-	echo "auth sufficient pam_wheel.so trust use_uid" >> "${ROOT}/etc/pam.d/su"
+	sed --in-place \
+		--expression='/^auth\s\+sufficient\s\+pam_rootok.so/ a# trust users in the "wheel" group\nauth sufficient pam_wheel.so trust use_uid' \
+		"${ROOT}/etc/pam.d/su"
 
 	config-sshd
 	cat "${PUBLICKEY}" >> "${ROOT}/home/${USRNAME}/.ssh/authorized_keys"
