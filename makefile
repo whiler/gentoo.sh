@@ -11,19 +11,24 @@ NODENAME ?=
 MEMSIZE ?=
 CPUCOUNT ?=
 
-
 pi1b: platforms/pi1b.sh
-	PLATFORM=pi1b NODENAME=pi MEMSIZE=512 CPUCOUNT=1 KERNEL=$(shell ls resources/firmwares/pi.kernel.1.*.tar.gz | head -1) $(MAKE) pi
+	PLATFORM=pi1b NODENAME=pi MEMSIZE=512 CPUCOUNT=1 $(MAKE) pi
 
 pi1b-repair:
 	MODE=repair $(MAKE) pi1b
 
-pi: gentoo.sh
+pi: gentoo.sh resources/firmwares/pi.kernel.latest.tar.gz
 ifdef DEBUG
-	bash gentoo.sh --dev=$(DEV) --kernel=$(KERNEL) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT) --debug=true
+	bash gentoo.sh --dev=$(DEV) --kernel=$(CURDIR)/resources/firmwares/pi.kernel.latest.tar.gz --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT) --debug=true
 else
-	bash gentoo.sh --dev=$(DEV) --kernel=$(KERNEL) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT)
+	bash gentoo.sh --dev=$(DEV) --kernel=$(CURDIR)/resources/firmwares/pi.kernel.latest.tar.gz --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT)
 endif
+
+resources/firmwares/pi.kernel.latest.tar.gz: resources/firmwares/pi/pi.kernel.*
+	ln -sf $(CURDIR)/$(shell ls resources/firmwares/pi/pi.kernel.* | sort -r | head -1) resources/firmwares/pi.kernel.latest.tar.gz
+
+resources/firmwares/pi/pi.kernel.*:
+	bash scripts/fetch.pi.kernel.sh $(CURDIR)/resources/firmwares/pi
 
 generic: platforms/generic.sh
 	PLATFORM=generic $(MAKE) atom

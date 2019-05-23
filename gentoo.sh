@@ -1100,7 +1100,7 @@ mkrootfs() {
 	if [[ "${ROOTFS}" == ext* ]]; then
 		mkfs.${ROOTFS} -F -L "${ROOTLABEL}" "${1}"
 	elif [[ ${ROOTFS} == "f2fs" ]]; then
-		mkfs.${ROOTFS} -l "${ROOTLABEL}" "${1}"
+		mkfs.${ROOTFS} -f -l "${ROOTLABEL}" "${1}"
 	else
 		return 1
 	fi
