@@ -1,9 +1,11 @@
 #!/bin/bash
+# ARMv6-compatible processor [410fb767] revision 7 (ARMv7), cr=00c5387d
 # Raspberry Pi Model B Rev 2
 # BCM2835 SoC
 # 512 MB RAM
-# ARMv6-compatible processor rev 7 (v6l)
 # 
+# The partition table must be MSDOS
+# The first partition (/boot) must be vfat fat32
 
 RUNNINGDEV=/dev/mmcblk0
 ROOTFS=f2fs
