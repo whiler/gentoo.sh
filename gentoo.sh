@@ -11,6 +11,7 @@ DEVTAB=gpt
 ENABLEBIOS=true
 REQUIRED="parted mkfs.vfat mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
+ENABLESYSTEMD=
 
 PROFILE=default/linux/amd64/17.0
 VGNAME=gentoo
@@ -35,7 +36,6 @@ PORTAGE=
 CONFIG=
 KERNEL=
 NODENAME=
-DOMAIN=
 TIMEZONE=
 PUBLICKEY=
 DMCRYPTKEY=
@@ -119,11 +119,6 @@ argparse() {
 				shift
 				;;
 
-			--domain=*)
-				DOMAIN="${arg#*=}"
-				shift
-				;;
-
 			--timezone=*)
 				TIMEZONE="${arg#*=}"
 				shift
@@ -160,7 +155,6 @@ argparse() {
 	MIRRORS="${MIRRORS:="http://distfiles.gentoo.org/"}"
 	RSYNC="${RSYNC:="rsync.gentoo.org"}"
 	NODENAME="${NODENAME:="gentoo"}"
-	DOMAIN="${DOMAIN:="local"}"
 	TIMEZONE="${TIMEZONE:="UTC"}"
 	MODE="${MODE:="install"}"
 	USRNAME="${USRNAME:="gentoo"}"
@@ -570,12 +564,12 @@ config-gentoo() {
 	echo "${NODENAME}" > "${ROOT}/etc/hostname"
 	sed --in-place --expression="s/localhost/${NODENAME}/" "${ROOT}/etc/conf.d/hostname"
 	cat > "${ROOT}/etc/hosts" <<EOF
-127.0.0.1	${NODENAME}.${DOMAIN} ${NODENAME} localhost
+127.0.0.1		${NODENAME} localhost
 
 # The following lines are desirable for IPv6 capable hosts
-::1	${NODENAME}.${DOMAIN} ${NODENAME} localhost ip6-localhost ip6-loopback
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
+::1		${NODENAME} localhost ip6-localhost ip6-loopback
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
 EOF
 	cat > "${ROOT}/etc/fstab" << EOF
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
@@ -603,9 +597,12 @@ EOF
 	fi
 	echo "net-firewall/ipset -modules" >> "${ROOT}/etc/portage/package.use/ipset"
 
-	x-chpasswd root
-	x-useradd ${USRNAME} users,wheel
-	x-chpasswd ${USRNAME} $(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)
+	x-chpasswd root "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
+	x-useradd "${USRNAME}" users,wheel
+	x-chpasswd "${USRNAME}" "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
+
+	echo "auth required   pam_wheel.so group=wheel"   >> "${ROOT}/etc/pam.d/su"
+	echo "auth sufficient pam_wheel.so trust use_uid" >> "${ROOT}/etc/pam.d/su"
 
 	config-sshd
 	cat "${PUBLICKEY}" >> "${ROOT}/home/${USRNAME}/.ssh/authorized_keys"
@@ -726,6 +723,8 @@ EOF
 		mkdir --parents "${ROOT}/etc/systemd/system/multi-user.target.wants"
 		ln --symbolic --force /lib/systemd/system/sshd.service "${ROOT}/etc/systemd/system/multi-user.target.wants/sshd.service"
 	else
+		sed --in-place --expression='s/^#rc_logger="NO"/rc_logger="YES"/' "${ROOT}/etc/rc.conf"
+
 		for ifname in $(ls -l /sys/class/net/ | grep pci | cut --delimiter=" " --fields=9); do
 			ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.${ifname}"
 			ln --symbolic --force "/etc/init.d/net.${ifname}" "${ROOT}/etc/runlevels/boot/net.${ifname}"
@@ -1100,7 +1099,7 @@ mkrootfs() {
 	if [[ "${ROOTFS}" == ext* ]]; then
 		mkfs.${ROOTFS} -F -L "${ROOTLABEL}" "${1}"
 	elif [[ ${ROOTFS} == "f2fs" ]]; then
-		mkfs.${ROOTFS} -f -l "${ROOTLABEL}" "${1}"
+		mkfs.${ROOTFS} -l "${ROOTLABEL}" "${1}"
 	else
 		return 1
 	fi
@@ -1209,7 +1208,7 @@ x-useradd() {
 		else
 			sep=","
 		fi
-		echo "${line}${sep}${usr}" >> "${ROOT}/etc/group"
+		sed --in-place --expression "s/${line}/${line}${sep}${usr}/" "${ROOT}/etc/group"
 	done
 
 	if [[ -z "${added}" ]]; then

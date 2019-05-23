@@ -63,7 +63,28 @@ EOF
 custom-gentoo() {
 	LOGI "generating todo.sh"
 
-    cat > "${ROOT}/root/todo.sh" << DOCHERE
+	sed --in-place \
+		--expression="s/curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,//" \
+		--expression="s/,umac-128@openssh.com//" \
+		"${ROOT}/etc/ssh/sshd_config"
+	sed --in-place \
+		--expression='s/^s0:\(.*\)/# s0:\1/' \
+		--expression='s/^s1:\(.*\)/# s1:\1/' \
+		"${ROOT}/etc/inittab"
+	sed --in-place \
+		--expression='s/^#rc_sys=""/rc_sys=""/' \
+		"${ROOT}/etc/rc.conf"
+	test -e "${ROOT}/etc/runlevels/boot/hwclock" && rm "${ROOT}/etc/runlevels/boot/hwclock"
+	test ! -e "${ROOT}/etc/runlevels/boot/swclock" && ln --symbolic --force /etc/init.d/swclock "${ROOT}/etc/runlevels/boot/swclock"
+	if [[ ! -e "${ROOT}/etc/init.d/net.eth0" ]]; then
+		ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.eth0"
+		ln --symbolic --force /etc/init.d/net.eth0 "${ROOT}/etc/runlevels/default/net.eth0"
+	fi
+
+	mkdir --parents "${ROOT}/etc/modules-load.d"
+	echo "configs" >> "${ROOT}/etc/modules-load.d/configs.conf"
+
+	cat > "${ROOT}/root/todo.sh" << DOCHERE
 #!/bin/bash
 # generated at $(date)
 
@@ -83,11 +104,9 @@ test -e /proc/config.gz && /bin/zcat /proc/config.gz > /boot/kernel.config
 /sbin/rc-update add busybox-ntpd default
 /sbin/rc-update add sysklogd boot
 /sbin/rc-update add dropbear default
-/sbin/rc-update add swclock boot
 /sbin/rc-update add cpupower default
 /sbin/rc-update add rngd boot
 /sbin/rc-update del sshd
-/sbin/rc-update del hwclock boot
 /sbin/rc-update --update
 /sbin/rc-service ntp-client start
 /sbin/rc-service sysklogd start

@@ -7,21 +7,25 @@ DEBUG ?= true
 DMCRYPTPASSWD ?= dMcr794
 KERNEL ?=
 MIRRORS ?= https://mirrors.tuna.tsinghua.edu.cn/gentoo
+NODENAME ?=
+MEMSIZE ?=
+CPUCOUNT ?=
 
-pi1b:
-	PLATFORM=pi1b $(MAKE) pi
+
+pi1b: platforms/pi1b.sh
+	PLATFORM=pi1b NODENAME=pi MEMSIZE=512 CPUCOUNT=1 KERNEL=$(shell ls resources/firmwares/pi.kernel.1.*.tar.gz | head -1) $(MAKE) pi
 
 pi1b-repair:
 	MODE=repair $(MAKE) pi1b
 
 pi: gentoo.sh
 ifdef DEBUG
-	bash gentoo.sh --dev=$(DEV) --kernel=$(shell ls resources/firmwares/pi.kernel.1.*.tar.gz | head -1) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --debug=true
+	bash gentoo.sh --dev=$(DEV) --kernel=$(KERNEL) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT) --debug=true
 else
-	bash gentoo.sh --dev=$(DEV) --kernel=$(shell ls resources/firmwares/pi.kernel.1.*.tar.gz | head -1) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS)
+	bash gentoo.sh --dev=$(DEV) --kernel=$(KERNEL) --public-key=$(PUBKEY) --mode=$(MODE) --platform=$(PLATFORM) --mirrors=$(MIRRORS) --hostname=$(NODENAME) --mem=$(MEMSIZE) --cpu=$(CPUCOUNT)
 endif
 
-generic:
+generic: platforms/generic.sh
 	PLATFORM=generic $(MAKE) atom
 
 generic-repair:
