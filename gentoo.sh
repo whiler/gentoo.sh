@@ -834,7 +834,9 @@ fi
 
 echo "GRUB_CMDLINE_LINUX=\"${cmdline}\"" >> /etc/default/grub
 echo "GRUB_DEVICE=UUID=$(blkid --output=value --match-tag=UUID "${ROOTDEV}")" >> /etc/default/grub
-grub-install --target=i386-pc "${DEV}"
+if [[ "x" != "x${ENABLEBIOS}" ]]; then
+	grub-install --target=i386-pc "${DEV}"
+fi
 grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig --output=/boot/grub/grub.cfg
 DOCHERE
@@ -1023,6 +1025,10 @@ make-partitions() {
 	elif [[ ! -z "${ENABLEBIOS}" ]]; then
 		offset=$((offset + 2))
 		n=$((n + 1))
+		if test "gpt" == "${DEVTAB}" && ! parted --script --align=opt "${DEV}" "set ${n} bios_grub on"; then
+			LOGE "set part ${n} GRUB BIOS failed"
+			return 1
+		fi
 	fi
 
 	if ! parted --script --align=opt "${DEV}" "mkpart primary fat32 ${offset} $((offset + 64))"; then
