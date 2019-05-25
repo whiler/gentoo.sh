@@ -799,13 +799,14 @@ chroot-into-gentoo() {
 		genopts="--lvm"
 	fi
 
-
 	chroot "${ROOT}" /bin/bash << DOCHERE
 eselect profile set "${profile}"
 env-update && source /etc/profile
 
-emerge --quiet --deep --newuse ${opts} @world && \
-emerge --quiet ${opts} sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} && \
+emerge --quiet --deep --newuse ${opts} @world && (\
+	emerge --quiet ${opts} --autounmask-write sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} || \
+	etc-update --quiet --automode -3 /etc/portage \
+	) && emerge --quiet ${opts}               sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} && \
 emerge --quiet --depclean || exit 1
 
 test -e /etc/lvm/lvm.conf && sed --in-place --expression "s/use_lvmetad = 1/use_lvmetad = 0/" /etc/lvm/lvm.conf
@@ -815,7 +816,7 @@ if [[ -f /kernel.config ]]; then
 	if [[ "x" == "x${KERNEL}" ]]; then
 		LOGI "compile kernel"
 		pushd /usr/src/linux/
-			make --quiet olddefconfig && make --quiet --jobs=$(($(getcpucount) * 2 + 1)) && make --quiet modules_install && make --quiet install
+			make --quiet olddefconfig && make --quiet --jobs=$((CPUCOUNT * 2 + 1)) && make --quiet modules_install && make --quiet install
 		popd
 
 		LOGI "generate initramfs"
