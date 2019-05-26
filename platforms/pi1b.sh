@@ -81,6 +81,7 @@ custom-gentoo() {
 		"${ROOT}/etc/rc.conf"
 	test -e "${ROOT}/etc/runlevels/boot/hwclock" && rm "${ROOT}/etc/runlevels/boot/hwclock"
 	test ! -e "${ROOT}/etc/runlevels/boot/swclock" && ln --symbolic --force /etc/init.d/swclock "${ROOT}/etc/runlevels/boot/swclock"
+	test ! -e "${ROOT}/etc/runlevels/default/busybox-ntpd" && ln --symbolic --force /etc/init.d/busybox-ntpd "${ROOT}/etc/runlevels/default/busybox-ntpd"
 	if [[ ! -e "${ROOT}/etc/init.d/net.eth0" ]]; then
 		ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.eth0"
 		ln --symbolic --force /etc/init.d/net.eth0 "${ROOT}/etc/runlevels/default/net.eth0"
@@ -93,31 +94,24 @@ custom-gentoo() {
 #!/bin/bash
 # generated at $(date)
 
-/etc/init.d/busybox-ntpd start
-
-test -e /proc/config.gz && /bin/zcat /proc/config.gz > /boot/kernel.config
-
 /usr/sbin/locale-gen
 /usr/bin/eselect locale set en_US.UTF-8
 /usr/sbin/env-update && source /etc/profile
 
 /usr/bin/emerge --sync
-/usr/bin/emerge --autounmask-write net-misc/ntp net-misc/dropbear app-admin/sudo app-misc/tmux sys-power/cpupower sys-apps/rng-tools raspberrypi-userland net-wireless/wpa_supplicant sys-process/cronie app-admin/sysklogd app-editors/vim
-/usr/bin/emerge                    net-misc/ntp net-misc/dropbear app-admin/sudo app-misc/tmux sys-power/cpupower sys-apps/rng-tools raspberrypi-userland net-wireless/wpa_supplicant sys-process/cronie app-admin/sysklogd app-editors/vim
+/usr/sbin/perl-cleaner --all
+/usr/bin/emerge --emptytree --newuse --update --deep --ask --tree --verbose world
+
+/usr/bin/emerge --autounmask-write app-admin/sudo app-misc/tmux sys-power/cpupower sys-apps/rng-tools raspberrypi-userland net-wireless/wpa_supplicant sys-process/cronie app-admin/sysklogd app-editors/vim
+/usr/bin/emerge                    app-admin/sudo app-misc/tmux sys-power/cpupower sys-apps/rng-tools raspberrypi-userland net-wireless/wpa_supplicant sys-process/cronie app-admin/sysklogd app-editors/vim
 /sbin/rc-update add cronie default
-/sbin/rc-update add ntp-client default
-/sbin/rc-update add busybox-ntpd default
 /sbin/rc-update add sysklogd boot
-/sbin/rc-update add dropbear default
 /sbin/rc-update add cpupower default
 /sbin/rc-update add rngd boot
-/sbin/rc-update del sshd
 /sbin/rc-update --update
-/sbin/rc-service ntp-client start
+
 /sbin/rc-service sysklogd start
 /sbin/rc-service cronie start
-
-ln --symbolic /usr/bin/dbscp /usr/bin/scp
 
 cat > /etc/conf.d/cpupower << EOF
 START_OPTS="--governor ondemand"
@@ -132,12 +126,9 @@ echo "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=wheel" >> /etc/wpa_suppli
 echo "update_config=1" >> /etc/wpa_supplicant/wpa_supplicant.conf
 echo "wpa_supplicant_wlan0=\"-D wext\"" >> /etc/conf.d/net
 ln -sf /etc/init.d/net.lo /etc/init.d/net.wlan0
-/usr/bin/emerge --emptytree --newuse --update --deep --ask --tree --verbose world
 emerge --update --newuse --deep --with-bdeps=y @world
 emerge -avtuDN @preserved-rebuild
 emerge -avtuDN --depclean
-
-perl-cleaner --all
 
 eclean-dist --deep
 DOCHERE
