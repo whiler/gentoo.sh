@@ -5,7 +5,7 @@ export DTFMT="+[%Y-%m-%d %H:%M:%S %Z]"
 
 CANCHROOT=true
 ENABLEDMCRYPT=
-RUNNINGDEV=
+RUNNINGDEV=/dev/sda
 ROOTFS=ext4
 DEVTAB=gpt
 ENABLEBIOS=true
