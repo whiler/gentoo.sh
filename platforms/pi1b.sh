@@ -79,7 +79,7 @@ custom-gentoo() {
 	sed --in-place \
 		--expression='s/^#rc_sys=""/rc_sys=""/' \
 		"${ROOT}/etc/rc.conf"
-	test -e "${ROOT}/etc/runlevels/boot/hwclock" && rm "${ROOT}/etc/runlevels/boot/hwclock"
+	test -L "${ROOT}/etc/runlevels/boot/hwclock" && rm "${ROOT}/etc/runlevels/boot/hwclock"
 	test ! -e "${ROOT}/etc/runlevels/boot/swclock" && ln --symbolic --force /etc/init.d/swclock "${ROOT}/etc/runlevels/boot/swclock"
 	test ! -e "${ROOT}/etc/runlevels/default/busybox-ntpd" && ln --symbolic --force /etc/init.d/busybox-ntpd "${ROOT}/etc/runlevels/default/busybox-ntpd"
 	if [[ ! -e "${ROOT}/etc/init.d/net.eth0" ]]; then
