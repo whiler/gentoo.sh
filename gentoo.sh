@@ -726,7 +726,7 @@ EOF
 	else
 		sed --in-place --expression='s/^#rc_logger="NO"/rc_logger="YES"/' "${ROOT}/etc/rc.conf"
 
-		for ifname in $(ls -l /sys/class/net/ | grep pci | cut --delimiter=" " --fields=9); do
+		for ifname in $(ls -l /sys/class/net/ | grep pci | sed 's/.*net\/\(.*\)/\1/'); do
 			ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.${ifname}"
 			ln --symbolic --force "/etc/init.d/net.${ifname}" "${ROOT}/etc/runlevels/boot/net.${ifname}"
 		done
