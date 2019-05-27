@@ -573,7 +573,7 @@ ff02::2		ip6-allrouters
 EOF
 	cat > "${ROOT}/etc/fstab" << EOF
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
-$(getfsdev "${BOOTDEV}") /boot fat32 noauto,noatime 1 2
+$(getfsdev "${BOOTDEV}") /boot vfat noauto,noatime 1 2
 $(getfsdev "${SWAPDEV}") none  swap sw             0 0
 $(getfsdev "${ROOTDEV}") /     ${ROOTFS} noatime        0 1
 EOF
