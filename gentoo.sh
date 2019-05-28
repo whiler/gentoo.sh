@@ -1217,12 +1217,72 @@ x-useradd() {
 			sep=","
 		fi
 		sed --in-place --expression "s/${line}/${line}${sep}${usr}/" "${ROOT}/etc/group"
+
+		line=$(grep "^${grp}:" "${ROOT}/etc/gshadow")
+		if [[ "${line}" == *: ]]; then
+			sep=""
+		else
+			sep=","
+		fi
+		sed --in-place --expression "s/${line}/${line}${sep}${usr}/" "${ROOT}/etc/gshadow"
 	done
 
 	if [[ -z "${added}" ]]; then
 		return 1
 	fi
 	return 0
+}
+
+x-groupadd() {
+	local name isSystem gid
+	name=${1}
+	isSystem=${2}
+
+	if [[ 0 -lt $(grep --count "^${name}:" "${ROOT}/etc/group") ]]; then
+		return 0
+	fi
+
+	if [[ ! -z "${isSystem}" ]]; then
+		gid=999
+		until [[ 0 -eq $(grep --count ":${gid}:" "${ROOT}/etc/group") ]]; do
+			gid=$((gid - 1))
+		done
+	else
+		gid=1000
+		until [[ 0 -eq $(grep --count ":${gid}:" "${ROOT}/etc/group") ]]; do
+			gid=$((gid + 1))
+		done
+	fi
+
+	echo "${name}:x:${gid}:" >> "${ROOT}/etc/group"
+	echo "${name}:!::"       >> "${ROOT}/etc/gshadow"
+
+	return 0
+}
+
+x-append-user-to-groups() {
+	local usr grps line sep
+	grps=${1}
+	usr=${2}
+
+	for grp in ${grps//,/ }; do
+		for path in "${ROOT}/etc/group" "${ROOT}/etc/gshadow"; do
+			line=$(grep "^${grp}:" "${path}")
+			if [[ -z "${line}" ]]; then
+				continue
+			elif [[ 0 -lt $(cut --delimiter=: --fields=4 <<< "${line}" | grep --count "${usr}") ]]; then
+				continue
+			fi
+
+			if [[ "${line}" == *: ]]; then
+				sep=""
+			else
+				sep=","
+			fi
+
+			sed --in-place --expression "s/${line}/${line}${sep}${usr}/" "${path}"
+		done
+	done
 }
 
 ensure-sudoers() {

@@ -91,6 +91,10 @@ custom-gentoo() {
 	mkdir --parents "${ROOT}/etc/modules-load.d"
 	echo "configs" >> "${ROOT}/etc/modules-load.d/configs.conf"
 
+	x-groupadd dialout true
+	x-groupadd gpio true
+	x-append-user-to-groups dialout,gpio "${USRNAME}"
+
 	cat > "${ROOT}/root/todo.sh" << DOCHERE
 #!/bin/bash
 # generated at $(date)
