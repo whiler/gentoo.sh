@@ -598,7 +598,7 @@ EOF
 	echo "net-firewall/ipset -modules" >> "${ROOT}/etc/portage/package.use/ipset"
 
 	x-chpasswd root "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
-	x-useradd "${USRNAME}" users,wheel
+	x-useradd "${USRNAME}" audio,cdrom,input,users,video,wheel
 	x-chpasswd "${USRNAME}" "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
 
 	sed --in-place \
