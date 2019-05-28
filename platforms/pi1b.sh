@@ -60,6 +60,7 @@ sdram_freq=450
 over_voltage=2
 force_turbo=1
 gpu_mem=16
+enable_uart=1
 EOF
 
 	return 0
