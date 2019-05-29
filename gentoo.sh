@@ -728,7 +728,7 @@ EOF
 
 		for ifname in $(ls -l /sys/class/net/ | grep pci | sed 's/.*net\/\(.*\)/\1/'); do
 			ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.${ifname}"
-			ln --symbolic --force "/etc/init.d/net.${ifname}" "${ROOT}/etc/runlevels/boot/net.${ifname}"
+			ln --symbolic --force "/etc/init.d/net.${ifname}" "${ROOT}/etc/runlevels/default/net.${ifname}"
 		done
 		ln --symbolic --force /etc/init.d/iptables  "${ROOT}/etc/runlevels/default/iptables"
 		ln --symbolic --force /etc/init.d/ip6tables "${ROOT}/etc/runlevels/default/ip6tables"
