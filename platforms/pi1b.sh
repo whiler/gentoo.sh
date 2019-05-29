@@ -91,6 +91,8 @@ custom-gentoo() {
 	mkdir --parents "${ROOT}/etc/modules-load.d"
 	echo "configs" >> "${ROOT}/etc/modules-load.d/configs.conf"
 
+	echo "sys-power/cpupower ~arm" >> "${ROOT}/etc/portage/package.accept_keywords/cpupower"
+
 	x-groupadd dialout true
 	x-groupadd gpio true
 	x-append-user-to-groups dialout,gpio "${USRNAME}"

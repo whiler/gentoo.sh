@@ -540,26 +540,45 @@ config-gentoo() {
 
 	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
+	for d in env package.accept_keywords package.accept_restrict package.keywords package.license package.mask package.properties package.unmask package.use repos.conf; do
+		mkdir --parents "${ROOT}/etc/portage/${d}"
+	done
+
 	echo "MAKEOPTS=\"-j$((CPUCOUNT * 2 + 1))\"" >> "${ROOT}/etc/portage/make.conf"
 
 	if [[ ! -z "${MIRRORS}" && "http://distfiles.gentoo.org/" != "${MIRRORS}" ]]; then
 		echo "GENTOO_MIRRORS=\"${MIRRORS}\"" >> "${ROOT}/etc/portage/make.conf"
 	fi
 
-	mkdir --parents "${ROOT}/etc/portage/repos.conf"
+	echo "GRUB_PLATFORMS=\"efi-64 pc\"" >> "${ROOT}/etc/portage/make.conf"
+
 	cp "${ROOT}/usr/share/portage/config/repos.conf" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
 	if [[ ! -z "${RSYNC}" && "rsync.gentoo.org" != "${RSYNC}" ]]; then
 		sed --in-place --expression="s/rsync.gentoo.org/${RSYNC}/" "${ROOT}/etc/portage/repos.conf/gentoo.conf"
 	fi
 
-	echo "${TIMEZONE}" > "${ROOT}/etc/timezone"
-	cp "${ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${ROOT}/etc/localtime"
+	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
+
+	cat >> "${ROOT}/etc/portage/package.env" << EOF
+dev-libs/boost singleton
+dev-util/cmake singleton
+sys-block/thin-provisioning-tools singleton
+sys-devel/binutils singleton
+EOF
+
+	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
+		echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
+	fi
+	echo "net-firewall/ipset -modules" >> "${ROOT}/etc/portage/package.use/ipset"
 
 	echo "LINGUAS=\"en_US\"" >> "${ROOT}/etc/portage/make.conf"
 	echo "LC_COLLATE=\"C\"" >>     "${ROOT}/etc/env.d/02locale"
 	echo "LANG=\"en_US.UTF-8\"" >> "${ROOT}/etc/env.d/02locale"
 	echo "en_US.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
-    echo "zh_CN.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
+	echo "zh_CN.UTF-8 UTF-8" >> "${ROOT}/etc/locale.gen"
+
+	echo "${TIMEZONE}" > "${ROOT}/etc/timezone"
+	cp "${ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${ROOT}/etc/localtime"
 
 	echo "${NODENAME}" > "${ROOT}/etc/hostname"
 	sed --in-place --expression="s/localhost/${NODENAME}/" "${ROOT}/etc/conf.d/hostname"
@@ -578,24 +597,8 @@ $(getfsdev "${SWAPDEV}") none  swap sw             0 0
 $(getfsdev "${ROOTDEV}") /     ${ROOTFS} noatime        0 1
 EOF
 
-	echo "GRUB_PLATFORMS=\"efi-64 pc\"" >> "${ROOT}/etc/portage/make.conf"
 
 	ln --symbolic --force /proc/self/mounts "${ROOT}/etc/mtab"
-
-	mkdir --parents "${ROOT}/etc/portage/env"
-	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
-	{
-		echo "dev-libs/boost singleton";
-		echo "dev-util/cmake singleton";
-		echo "sys-block/thin-provisioning-tools singleton";
-		echo "sys-devel/binutils singleton";
-	} >> "${ROOT}/etc/portage/package.env"
-
-	mkdir --parents "${ROOT}/etc/portage/package.use"
-	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
-		echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
-	fi
-	echo "net-firewall/ipset -modules" >> "${ROOT}/etc/portage/package.use/ipset"
 
 	x-chpasswd root "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
 	x-useradd "${USRNAME}" audio,cdrom,input,users,video,wheel
