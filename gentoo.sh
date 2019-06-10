@@ -540,7 +540,7 @@ config-gentoo() {
 
 	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
 
-	for d in env package.accept_keywords package.accept_restrict package.keywords package.license package.mask package.properties package.unmask package.use repos.conf; do
+	for d in env package.env package.accept_keywords package.accept_restrict package.keywords package.license package.mask package.properties package.unmask package.use repos.conf; do
 		mkdir --parents "${ROOT}/etc/portage/${d}"
 	done
 
@@ -558,13 +558,9 @@ config-gentoo() {
 	fi
 
 	echo "MAKEOPTS=\"-j1\"" >> "${ROOT}/etc/portage/env/singleton"
-
-	cat >> "${ROOT}/etc/portage/package.env" << EOF
-dev-libs/boost singleton
-dev-util/cmake singleton
-sys-block/thin-provisioning-tools singleton
-sys-devel/binutils singleton
-EOF
+	for pkg in dev-libs/boost dev-util/cmake sys-block/thin-provisioning-tools sys-devel/binutils sys-devel/gcc; do
+		echo "${pkg} singleton" > "${ROOT}/etc/portage/package.env/$(basename "${pkg}")"
+	done
 
 	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
 		echo "sys-kernel/genkernel-next cryptsetup" >> "${ROOT}/etc/portage/package.use/genkernel-next"
