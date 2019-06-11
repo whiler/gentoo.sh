@@ -14,8 +14,8 @@ OPTIONAL=
 ENABLESYSTEMD=
 
 PROFILE=default/linux/amd64/17.0
-VGNAME=gentoo
-DMCRYPTNAME=encrypted
+VGNAME=
+DMCRYPTNAME=
 SWAPLABEL=swap
 ROOTLABEL=root
 ARCH=amd64
@@ -165,7 +165,6 @@ argparse() {
 }
 
 check-dev() {
-	local identifier=
 	if [[ -z "${1}" ]]; then
 		LOGE "argument dev required"
 	elif [[ ! -e "${1}" ]]; then
@@ -173,14 +172,21 @@ check-dev() {
 	elif [[ ! -b "${1}" ]]; then
 		LOGE "dev ${1} must be block device"
 	else
-		identifier="$(fdisk --list "${1}" | grep 'Disk identifier' | tail --bytes=8)"
-		if [[ ! -z "${identifier}" ]]; then
-			VGNAME="${identifier}"
-			DMCRYPTNAME="${identifier}X"
-		fi
 		return 0
 	fi
 	return 1
+}
+
+adjust-vgname() {
+	local identifier=
+	identifier="$(fdisk --list "${DEV}" | grep 'Disk identifier' | tail --bytes=8)"
+	if [[ ! -z "${identifier}" ]]; then
+		VGNAME="${identifier}"
+		DMCRYPTNAME="${identifier}x"
+	else
+		VGNAME="gentoo"
+		DMCRYPTNAME="encrypted"
+	fi
 }
 
 check-platform() {
@@ -273,6 +279,8 @@ install() {
 }
 
 repair() {
+	adjust-vgname
+
 	if ! open-disk; then
 		LOGE "open disk failed"
 	elif ! trap clean EXIT; then
@@ -1013,6 +1021,8 @@ make-partitions() {
 	local n=0
 	local offset=1
 
+	adjust-vgname
+
 	if [[ ! -z "${ENABLEDMCRYPT}" ]]; then
 		lvscan
 		test -e "/dev/${VGNAME}/${SWAPLABEL}" && lvremove --force "/dev/${VGNAME}/${SWAPLABEL}"
@@ -1073,6 +1083,8 @@ make-partitions() {
 		n=$((n + 1))
 		ROOTDEV="$(getpart "${DEV}" "${n}")"
 	fi
+
+	adjust-vgname
 
 	if ! partprobe "${DEV}"; then
 		LOGE "partprobe ${DEV} failed"
