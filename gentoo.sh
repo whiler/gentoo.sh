@@ -9,7 +9,7 @@ RUNNINGDEV=/dev/sda
 ROOTFS=ext4
 DEVTAB=gpt
 ENABLEBIOS=true
-REQUIRED="parted mkfs.vfat mkswap swapon swapoff shasum md5sum"
+REQUIRED="fdisk parted mkfs.vfat mkswap swapon swapoff shasum md5sum"
 OPTIONAL=
 ENABLESYSTEMD=
 
@@ -165,6 +165,7 @@ argparse() {
 }
 
 check-dev() {
+	local identifier=
 	if [[ -z "${1}" ]]; then
 		LOGE "argument dev required"
 	elif [[ ! -e "${1}" ]]; then
@@ -172,6 +173,11 @@ check-dev() {
 	elif [[ ! -b "${1}" ]]; then
 		LOGE "dev ${1} must be block device"
 	else
+		identifier="$(fdisk --list "${1}" | grep 'Disk identifier' | tail --bytes=8)"
+		if [[ ! -z "${identifier}" ]]; then
+			VGNAME="${identifier}"
+			DMCRYPTNAME="${identifier}X"
+		fi
 		return 0
 	fi
 	return 1
@@ -1401,7 +1407,9 @@ enable-openrc-services() {
 main() {
 	argparse "${@}"
 
-	if ! check-dev "${DEV}"; then
+	if [[ 0 -ne ${UID} ]]; then
+		LOGE "root privilege required"
+	elif ! check-dev "${DEV}"; then
 		LOGE "check device ${DEV} failed"
 	elif ! check-platform "${PLATFORM}"; then
 		LOGE "check platform ${PLATFORM} failed"
@@ -1411,8 +1419,6 @@ main() {
 		LOGE "init platform ${PLATFORM} failed"
 	elif ! check-runtime; then
 		LOGE "check runtime failed"
-	elif [[ 0 -ne ${UID} ]]; then
-		LOGE "root privilege required"
 	elif test "install" == "${MODE}" && ! install; then
 		LOGE "install failed"
 	elif test "repair" == "${MODE}" && ! repair; then
