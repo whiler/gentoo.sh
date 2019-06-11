@@ -538,7 +538,7 @@ config-platform() {
 config-gentoo() {
 	LOGI "config gentoo"
 
-	sed --in-place --expression="s/CFLAGS=\"-O2 -pipe\"/CFLAGS=\"-march=native -O2 -pipe\"/" "${ROOT}/etc/portage/make.conf"
+	echo "USE=\"-bindist\"" >> "${ROOT}/etc/portage/make.conf"
 
 	for d in env package.env package.accept_keywords package.accept_restrict package.keywords package.license package.mask package.properties package.unmask package.use repos.conf; do
 		mkdir --parents "${ROOT}/etc/portage/${d}"
