@@ -817,9 +817,9 @@ eselect profile set "${profile}"
 env-update && source /etc/profile
 
 emerge --quiet --deep --newuse ${opts} @world && (\
-	emerge --quiet ${opts} --autounmask-write sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} || \
+	emerge --quiet ${opts} --autounmask-write sys-boot/grub net-firewall/ipset app-admin/sudo ${pkgs} || \
 	etc-update --quiet --automode -5 /etc/portage \
-	) && emerge --quiet ${opts}               sys-boot/grub net-firewall/iptables net-firewall/ipset app-admin/sudo ${pkgs} && \
+	) && emerge --quiet ${opts}               sys-boot/grub net-firewall/ipset app-admin/sudo ${pkgs} && \
 emerge --quiet --depclean || exit 1
 
 test -e /etc/lvm/lvm.conf && sed --in-place --expression "s/use_lvmetad = 1/use_lvmetad = 0/" /etc/lvm/lvm.conf
