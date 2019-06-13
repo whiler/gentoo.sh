@@ -43,9 +43,9 @@ config-platform() {
 	LOGD "generating /boot/cmdline.txt"
 	cat << EOF | paste --serial --delimiters=" " - > "${ROOT}/boot/cmdline.txt"
 dwc_otg.lpm_enable=0
+console=tty1
 console=ttyAMA0,115200
 kgdboc=ttyAMA0,115200
-console=tty1
 root=$(getfsdev "${ROOTDEV}")
 rootfstype=${ROOTFS}
 elevator=deadline
@@ -58,7 +58,7 @@ arm_freq=900
 core_freq=333
 sdram_freq=450
 over_voltage=2
-force_turbo=1
+force_turbo=0
 gpu_mem=16
 enable_uart=1
 EOF
@@ -74,9 +74,12 @@ custom-gentoo() {
 		--expression="s/,umac-128@openssh.com//" \
 		"${ROOT}/etc/ssh/sshd_config"
 	sed --in-place \
+		--expression='s/^f0:\(.*\)/# f0:\1/' \
 		--expression='s/^s0:\(.*\)/# s0:\1/' \
 		--expression='s/^s1:\(.*\)/# s1:\1/' \
 		"${ROOT}/etc/inittab"
+	echo "s0:12345:respawn:/sbin/agetty -L 115200  ttyS0  vt100" >> "${ROOT}/etc/inittab"
+	echo "T0:23:respawn:/sbin/agetty    -L ttyAMA0 115200 vt100" >> "${ROOT}/etc/inittab"
 	sed --in-place \
 		--expression='s/^#rc_sys=""/rc_sys=""/' \
 		"${ROOT}/etc/rc.conf"
@@ -95,7 +98,9 @@ custom-gentoo() {
 
 	x-groupadd dialout true
 	x-groupadd gpio true
-	x-append-user-to-groups dialout,gpio "${USRNAME}"
+	x-groupadd i2c true
+	x-groupadd spi true
+	x-append-user-to-groups dialout,gpio,i2c,spi "${USRNAME}"
 
 	cat > "${ROOT}/root/todo.sh" << DOCHERE
 #!/bin/bash
