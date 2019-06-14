@@ -83,10 +83,11 @@ custom-gentoo() {
 	test -L "${ROOT}/etc/runlevels/boot/hwclock" && rm "${ROOT}/etc/runlevels/boot/hwclock"
 	test ! -e "${ROOT}/etc/runlevels/boot/swclock" && ln --symbolic --force /etc/init.d/swclock "${ROOT}/etc/runlevels/boot/swclock"
 	test ! -e "${ROOT}/etc/runlevels/default/busybox-ntpd" && ln --symbolic --force /etc/init.d/busybox-ntpd "${ROOT}/etc/runlevels/default/busybox-ntpd"
-	if [[ ! -e "${ROOT}/etc/init.d/net.eth0" ]]; then
-		ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.eth0"
-		ln --symbolic --force /etc/init.d/net.eth0 "${ROOT}/etc/runlevels/default/net.eth0"
-	fi
+
+	find "${ROOT}/etc/init.d" -type l -name 'net.*' -delete
+	rm ${ROOT}/etc/runlevels/default/net.*
+	ln --symbolic --force net.lo "${ROOT}/etc/init.d/net.eth0"
+	ln --symbolic --force /etc/init.d/net.eth0 "${ROOT}/etc/runlevels/default/net.eth0"
 
 	mkdir --parents "${ROOT}/etc/modules-load.d"
 	echo "configs" >> "${ROOT}/etc/modules-load.d/configs.conf"
