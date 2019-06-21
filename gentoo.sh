@@ -611,7 +611,7 @@ EOF
 	ln --symbolic --force /proc/self/mounts "${ROOT}/etc/mtab"
 
 	x-chpasswd root "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
-	x-useradd "${USRNAME}" audio,cdrom,input,users,video,wheel
+	x-useradd "${USRNAME}" users,cdrom,input,audio,video,wheel
 	x-chpasswd "${USRNAME}" "$(tr --delete --complement A-Za-z0-9_ < /dev/urandom | head --bytes=96 | xargs)"
 
 	sed --in-place \
